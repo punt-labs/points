@@ -147,6 +147,49 @@ Push the branch, open the PR, and require all CI legs and review conversations t
 clear. A changed commit restarts the gate. Merge only the verified unit, then
 update Beads and return to the backlog loop.
 
+### Automated PR review loop
+
+Treat review as an iterative convergence loop, not a one-shot check. A normal
+pull request takes two to six rounds:
+
+```text
+push → wait for CI + Qodo + Bugbot + Copilot
+  → triage every finding and thread
+  → fix real issues; explain and resolve non-issues
+  → push the correction
+  → wait for reviews of the exact new head
+  → repeat until clean → merge
+```
+
+- **Qodo:** read authoritative structured state with `qodo read
+  pr-review-session findings --pr-url <url> --json`. Act only on a completed
+review whose commit SHA equals the current PR head. Resolve valid findings in
+code; record dismissal only with explicit operator agreement.
+- **Cursor Bugbot:** require its external check to pass and address any linked
+  findings before the next push.
+- **GitHub Copilot:** reviews drafts and every push through the repository
+  ruleset. Require a completed review whose commit equals the current PR head,
+  then resolve each material conversation after fixing it or documenting why no
+  change is warranted.
+
+Every push invalidates prior review freshness. Do not merge because an earlier
+round was clean. The current head must have all required CI checks green, a
+completed clean Qodo review, a passing Bugbot check, and no unresolved Copilot
+or human review threads. Copilot must have completed review of that same head;
+the absence of threads while its review is pending is not a pass. The ruleset
+requires pull requests and thread
+resolution but zero approving reviews; correctness comes from evidence and
+closed findings, not an approval-count ceremony. This clean exact-head state is
+the effective approval to merge even though GitHub records no required formal
+approval.
+
+Today, GitHub mechanically enforces required CI, Bugbot status, pull requests,
+and thread resolution. The leader enforces exact-head Qodo and Copilot review
+completion before merge because Qodo publishes a comment-only review rather
+than a check context. `points-6ja` tracks a fail-closed `review-gate` check once
+a scoped Qodo service credential is available; never put an unscoped personal
+Qodo key in Actions.
+
 ## Mission Loop: Bounded Ethos Nodes
 
 An Ethos mission is one graph node: one declared input set, one output, one

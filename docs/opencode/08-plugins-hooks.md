@@ -102,3 +102,10 @@ and Biff watches both quality workflows. `make doctor` requires all active
 OpenCode plugins to be built-in and healthy, Ethos hook checks to pass, and Biff
 deployment to be current. Normal `make check` continues to lint committed
 workflow and source artifacts.
+
+The first protected PR proved all three automated review integrations. Qodo
+completed a clean structured review on the exact head commit, Cursor Bugbot
+passed its external check, and Copilot submitted an approval-recommended review
+with zero findings. Qodo publishes a review rather than a GitHub check context
+in this organization, matching Ethos, so the leader enforces its exact-head
+cleanliness in the iterative PR loop documented in `docs/WORKFLOW.md`.
