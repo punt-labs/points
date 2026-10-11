@@ -1,0 +1,25 @@
+# STATUS: UNVERIFIED (see //:MODULE.bazel). Normally gazelle generates this file;
+# it is hand-written here as a correct-by-reference placeholder so the intended
+# targets are visible before bazelisk is installed. Re-run `bazel run //:gazelle`
+# to regenerate authoritatively.
+
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "points_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/punt-labs/points/cmd/points",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "points",
+    embed = [":points_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "points_test",
+    srcs = ["main_test.go"],
+    embed = [":points_lib"],
+)

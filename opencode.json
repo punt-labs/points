@@ -1,0 +1,106 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "lsp": {
+    "gopls": {
+      "command": ["gopls"],
+      "extensions": [".go"]
+    }
+  },
+  "formatter": {
+    "gofmt": {}
+  },
+  "agents": {
+    "build": {
+      "permissions": [
+        { "action": "edit", "resource": ".env", "effect": "deny" },
+        { "action": "edit", "resource": ".env.*", "effect": "deny" },
+        { "action": "edit", "resource": ".envrc", "effect": "deny" },
+        { "action": "edit", "resource": ".envrc.local", "effect": "deny" },
+        { "action": "shell", "resource": "sudo *", "effect": "ask" },
+        { "action": "shell", "resource": "su *", "effect": "ask" },
+        { "action": "shell", "resource": "rm -rf /*", "effect": "deny" },
+        { "action": "shell", "resource": "rm -rf ~*", "effect": "deny" },
+        { "action": "shell", "resource": "dd *", "effect": "ask" },
+        { "action": "shell", "resource": "curl *", "effect": "ask" },
+        { "action": "shell", "resource": "wget *", "effect": "ask" },
+        { "action": "shell", "resource": "ssh *", "effect": "ask" },
+        { "action": "shell", "resource": "scp *", "effect": "ask" },
+        { "action": "shell", "resource": "nc *", "effect": "ask" },
+        { "action": "shell", "resource": "ncat *", "effect": "ask" },
+        { "action": "shell", "resource": "netcat *", "effect": "ask" },
+        { "action": "shell", "resource": "socat *", "effect": "ask" },
+        { "action": "shell", "resource": "direnv allow*", "effect": "ask" },
+        { "action": "shell", "resource": "git push*", "effect": "ask" },
+        { "action": "shell", "resource": "gh release create*", "effect": "ask" },
+        { "action": "shell", "resource": "npm publish*", "effect": "ask" },
+        { "action": "shell", "resource": "brew publish*", "effect": "ask" },
+        { "action": "beadle_send_email", "resource": "*", "effect": "ask" },
+        { "action": "beadle_reply_message", "resource": "*", "effect": "ask" },
+        { "action": "biff_write", "resource": "*", "effect": "ask" },
+        { "action": "biff_wall", "resource": "*", "effect": "ask" },
+        { "action": "biff_talk", "resource": "*", "effect": "ask" },
+        { "action": "ethos_mission", "resource": "*", "effect": "ask" },
+        { "action": "browser_*", "resource": "*", "effect": "deny" }
+      ]
+    }
+  },
+  "mcp": {
+    "servers": {
+      "ethos": {
+        "type": "local",
+        "command": ["direnv", "exec", ".", "ethos", "serve"],
+        "disabled": false
+      },
+      "quarry": {
+        "type": "local",
+        "command": ["direnv", "exec", ".", "quarry", "mcp"],
+        "disabled": false,
+        "timeout": {
+          "catalog": 30000,
+          "execution": 30000
+        }
+      },
+      "biff": {
+        "type": "local",
+        "command": ["direnv", "exec", ".", "biff", "mcp"],
+        "disabled": false
+      },
+      "vox": {
+        "type": "local",
+        "command": ["direnv", "exec", ".", "vox", "mcp"],
+        "disabled": false
+      },
+      "beadle": {
+        "type": "local",
+        "command": ["direnv", "exec", ".", "beadle-email", "serve"],
+        "disabled": false
+      },
+      "lux": {
+        "type": "remote",
+        "url": "http://127.0.0.1:8430/mcp",
+        "disabled": false
+      },
+      "context7": {
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp",
+        "headers": {
+          "Authorization": "Bearer {env:CONTEXT7_API_KEY}"
+        },
+        "disabled": false,
+        "timeout": {
+          "catalog": 30000,
+          "execution": 30000
+        }
+      },
+      "brave-search": {
+        "type": "local",
+        "command": ["direnv", "exec", ".", "npx", "-y", "@brave/brave-search-mcp-server", "--transport", "stdio"],
+        "disabled": false,
+        "timeout": {
+          "catalog": 60000,
+          "execution": 30000
+        }
+      }
+    }
+  }
+}

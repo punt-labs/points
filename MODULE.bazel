@@ -1,0 +1,22 @@
+# Bazel (bzlmod) module for points.
+#
+# STATUS: UNVERIFIED. Bazel/bazelisk is not yet installed on the build host, so
+# this file is scaffolded correct-by-reference (rules_go + gazelle, current as
+# of authoring) but has not been run. The VERIFIED build is the Makefile + Go
+# toolchain. See docs/adr/0005-go-single-binary.md and the `bazel-verify` bead.
+#
+# Once bazelisk is installed:
+#   bazel run //:gazelle        # generate/update BUILD.bazel files
+#   bazel build //cmd/points    # build the binary
+#   bazel test //...            # run tests
+
+module(
+    name = "points",
+    version = "0.0.0",
+)
+
+bazel_dep(name = "rules_go", version = "0.50.1")
+bazel_dep(name = "gazelle", version = "0.39.1")
+
+go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
+go_sdk.download(version = "1.26.0")

@@ -1,0 +1,568 @@
+\documentclass{article}
+\usepackage{fuzz}
+\makeatletter
+\newenvironment{theorem}[1]{\medskip\noindent\textbf{Theorem (#1).}\@nameuse{zed}}{\@nameuse{endzed}}
+\makeatother
+
+\begin{document}
+
+\title{A Formal Specification of \texttt{model-provider-claude} (Claude Code only)}
+\author{Punt Labs}
+\maketitle
+
+\section{Purpose and scope}
+
+This is the other half of a two-tool split. \texttt{model-provider-claude}
+configures exactly one harness --- Claude Code --- and carries all the
+complexity that, in the combined tool, made the whole thing fragile:
+canonicalization, the \texttt{modelOverrides} map, the tier-alias fan-out, the
+small-fast background model, the $1M$-context marker, and the one legitimate use
+of a Claude subscription credential. None of that leaks into the sibling
+\texttt{model-provider-fleet} tool; it is quarantined here, where it can be
+stated precisely and checked hard, because it only ever concerns one harness.
+
+The guarantees this tool must make, which the combined tool only ever got right
+by accident:
+the main request carries the selection; each tier alias (the Agent tool's
+\texttt{opus|sonnet|haiku|fable} sub-agents) resolves to a tier-appropriate id
+in the selection's provider family --- a haiku sub-agent runs haiku, not a
+force-upgrade; the small-fast background model is pinned to a routable id;
+Claude Code's canonicalization is corrected by an override map so the selection
+reaches the wire verbatim rather than a mis-canonicalized base; and a
+non-Claude selection is refused loudly rather than silently mis-routed.
+
+\section{Given sets and enumerations}
+
+A model id is an opaque catalog token (e.g.
+\texttt{openrouter/anthropic/claude-opus-4.8}). A provider is the upstream a
+gateway routes to. A canonical id is the base name Claude Code derives from a
+model id by dropping the provider prefix and rewriting dots to hyphens (e.g.
+\texttt{claude-opus-4-8}).
+
+\begin{zed}
+  [ModelId, Provider, CanonId]
+\end{zed}
+
+Claude Code issues three request kinds. \emph{main} is the primary loop;
+\emph{tier} is an Agent-tool sub-agent spawn resolved through a tier alias;
+\emph{small} is the background small-fast model.
+
+\begin{zed}
+  ReqKind ::= main | tier | small
+\end{zed}
+
+The gateways; the spec is written over an abstract gateway, these are the
+instances. $direct$ is modelled separately (absence of a gateway).
+
+\begin{zed}
+  Gateway ::= bifrost | envoy | agentgateway
+\end{zed}
+
+Authentication: the per-host gateway virtual key, or the operator's Claude
+subscription OAuth passed through the gateway. Unlike the fleet tool, $subauth$
+has a legitimate home here --- this is Claude Code, Anthropic's own client.
+
+\begin{zed}
+  AuthMode ::= vkauth | subauth
+\end{zed}
+
+Booleans.
+
+\begin{zed}
+  Bool ::= yes | no
+\end{zed}
+
+\section{The gateway contract}
+
+$gwCatalog$ gives, per id, the provider; $gwServes$ the entitled subset;
+$gwCanon$ the canonical id Claude Code derives from a served id; $gwAnthropic$
+whether the gateway exposes the Anthropic protocol Claude Code speaks. Every
+gateway entitles at least one id and canonicalizes exactly its catalogued ids.
+
+\begin{axdef}
+  gwCatalog : Gateway \fun (ModelId \pfun Provider) \\
+  gwServes : Gateway \fun \power ModelId \\
+  gwCanon : Gateway \fun (ModelId \pfun CanonId) \\
+  gwAnthropic : Gateway \fun Bool
+\where
+  \forall g : Gateway @ \\
+  \t1 \dom (gwCanon~g) = \dom (gwCatalog~g) \land \\
+  \t1 gwServes~g \subseteq \dom (gwCatalog~g) \land \\
+  \t1 gwServes~g \neq \emptyset
+\end{axdef}
+
+The selectable ids are the entitled set.
+
+\begin{axdef}
+  validOn : Gateway \fun \power ModelId
+\where
+  \forall g : Gateway @ validOn~g = gwServes~g
+\end{axdef}
+
+Provider of an id on a gateway, for catalogued ids.
+
+\begin{axdef}
+  provOn : Gateway \cross ModelId \pfun Provider
+\where
+  \forall g : Gateway; m : ModelId @ \\
+  \t1 ( ( g, m ) \in \dom provOn \iff m \in \dom (gwCatalog~g) ) \land \\
+  \t1 ( m \in \dom (gwCatalog~g) \implies provOn~(g, m) = gwCatalog~g~m )
+\end{axdef}
+
+A gateway can carry Claude Code iff it exposes the Anthropic protocol.
+
+\begin{axdef}
+  usableGateways : \power Gateway
+\where
+  usableGateways = \{ g : Gateway | gwAnthropic~g = yes \}
+\end{axdef}
+
+\section{Which ids Claude Code can run}
+
+Claude Code is Claude-only: it accepts only Anthropic-family model ids. $isClaude$
+is the predicate deciding this --- a fixed subset of $ModelId$. A selection
+outside it is refused at the top level (the loud \texttt{unrecognized\_model}
+outcome), never configured.
+
+\begin{axdef}
+  claudeIds : \power ModelId
+\where
+  claudeIds \neq \emptyset
+\end{axdef}
+
+\section{Canonicalization and the override map}
+
+Left to itself, Claude Code canonicalizes a configured id --- it would send
+$gwCanon~g~m$, the wrong thing when that differs from $m$ (a bare
+\texttt{claude-opus-4-8} routes first-party, not to the selected provider). The
+configuration corrects this with an override map so the verbatim $m$ reaches the
+wire. $wireOf$ is the \emph{correct} target: always the id itself.
+
+\begin{axdef}
+  wireOf : ModelId \fun ModelId
+\where
+  \forall m : ModelId @ wireOf~m = m
+\end{axdef}
+
+Tier resolution: a tier/small request is served by a tier-appropriate id in the
+selection's provider family --- catalogued, entitled, same provider, generally a
+different model. $tierId$ models it on a gateway.
+
+\begin{axdef}
+  tierId : Gateway \cross ModelId \pfun ModelId
+\where
+  \forall g : Gateway; m : ModelId @ \\
+  \t1 ( ( g, m ) \in \dom tierId \iff m \in gwServes~g ) \land \\
+  \t1 ( m \in gwServes~g \implies \\
+  \t2   ( tierId~(g, m) \in gwServes~g \land \\
+  \t2     gwCatalog~g~(tierId~(g, m)) = gwCatalog~g~m ) )
+\end{axdef}
+
+\section{Configuration state}
+
+$sel$ the selection; $selGw$ its gateway; $routed$ whether the gateway is active;
+$activeGw$ the gateway in force; $auth$ the auth mode; $wire$ the id per request
+kind; $override$ whether the \texttt{modelOverrides} map is present (both the
+canonical-key and raw-identity entries Claude Code needs). The selection must be
+entitled AND a Claude id --- a non-Claude id is never a valid configured state.
+
+\begin{schema}{Config}
+  sel : ModelId \\
+  selGw : Gateway \\
+  routed : Bool \\
+  activeGw : Gateway \\
+  auth : AuthMode \\
+  wire : ReqKind \pfun ModelId \\
+  override : Bool
+\where
+  sel \in validOn~selGw \\
+  sel \in claudeIds
+\end{schema}
+
+\section{Initial state}
+
+Never configured: direct, no managed wire, no override.
+
+\begin{schema}{Init}
+  Config'
+\where
+  routed' = no \\
+  auth' = vkauth \\
+  activeGw' = selGw' \\
+  wire' = \emptyset \\
+  override' = no
+\end{schema}
+
+\section{Well-formedness}
+
+When routed, $wire$ carries exactly Claude Code's three request kinds.
+
+\begin{schema}{WellFormed}
+  Config
+\where
+  routed = yes \implies \dom wire = \{ main, tier, small \}
+\end{schema}
+
+\section{The core guarantee}
+
+\textbf{Routing correctness.} Routed, the main request carries the selection
+verbatim, the tier and small requests carry a same-family tier id, and the
+override is present so canonicalization does not corrupt the main id. The wire
+target for kind $k$ under selection $m$ on gateway $g$ is written inline as
+\[ \IF k = main \THEN m \ELSE tierId~(g, m), \]
+inlined rather than a function over the $ReqKind \cross ModelId$ product so the
+model checker enumerates only the three finite kinds.
+
+\begin{schema}{RoutingCorrect}
+  WellFormed
+\where
+  routed = yes \implies \\
+  \t1 ( ( \forall k : \dom wire @ \\
+  \t2     wire~k = ( \IF k = main \THEN sel \ELSE tierId~(activeGw, sel) ) ) \land \\
+  \t1   override = yes )
+\end{schema}
+
+\textbf{Provider fidelity.} Every request --- main or side --- reaches the
+selection's provider on the active gateway. Entitlement makes that provider
+reachable, excluding the catalogued-but-\texttt{AccessDenied} failure.
+
+\begin{schema}{ProviderFidelity}
+  RoutingCorrect
+\where
+  routed = yes \implies \\
+  \t1 ( \forall k : \dom wire @ \\
+  \t2   provOn~(activeGw, wire~k) = provOn~(activeGw, sel) )
+\end{schema}
+
+\textbf{The forbidden failure.} The historical bug: the main request sent the
+canonicalized base id (no override), or a side-request fell back to a built-in
+whose provider is not the selection's.
+
+\begin{schema}{SilentMisroute}
+  WellFormed
+\where
+  routed = yes \\
+  ( override = no \lor \\
+  \t1 ( \exists k : \dom wire @ \\
+  \t2   provOn~(activeGw, wire~k) \neq provOn~(activeGw, sel) ) )
+\end{schema}
+
+\section{Shared effect: applying a gateway configuration}
+
+Route through gateway $g$ with Claude selection $m$: rebuild $wire$ (main $= m$,
+tier/small $= tierId~(g,m)$) and set the override.
+
+\begin{schema}{ApplyGateway}
+  \Delta Config \\
+  g? : Gateway \\
+  m? : ModelId
+\where
+  sel' = m? \\
+  selGw' = g? \\
+  activeGw' = g? \\
+  routed' = yes \\
+  auth' = auth \\
+  \dom wire' = \{ main, tier, small \} \\
+  wire'~main = m? \\
+  wire'~tier = tierId~(g?, m?) \\
+  wire'~small = tierId~(g?, m?) \\
+  override' = yes
+\end{schema}
+
+\section{Operation: \texttt{use}}
+
+Selecting a model. Input is a gateway, a model id, and a $force$ flag.
+Partitions: (a) valid --- a Claude id, entitled, gateway usable; (b) forced ---
+$force? = yes$ selects a Claude id that is catalogued but not entitled, gateway
+usable; (c) refused-nonclaude --- the id is not a Claude id (the loud
+\texttt{unrecognized\_model} outcome), refused even under force, because Claude
+Code cannot run it at all; (d) refused-unknown --- a Claude id not catalogued and
+not forced; (e) refused-gateway --- gateway lacks the Anthropic protocol.
+
+\begin{schema}{UseOk}
+  ApplyGateway \\
+  force? : Bool
+\where
+  m? \in claudeIds \\
+  m? \in validOn~g? \\
+  g? \in usableGateways \\
+  force? = no
+\end{schema}
+
+\begin{schema}{UseForced}
+  ApplyGateway \\
+  force? : Bool
+\where
+  force? = yes \\
+  m? \in claudeIds \\
+  m? \in \dom (gwCatalog~g?) \\
+  m? \notin gwServes~g? \\
+  g? \in usableGateways
+\end{schema}
+
+The loud refusal: a non-Claude id. No state change --- Claude Code cannot run it,
+and \texttt{--force} does not help. Distinct code.
+
+\begin{schema}{UseRefusedNonClaude}
+  \Xi Config \\
+  g? : Gateway \\
+  m? : ModelId \\
+  force? : Bool \\
+  err! : \num
+\where
+  m? \notin claudeIds \\
+  err! = 1
+\end{schema}
+
+\begin{schema}{UseRefusedUnknown}
+  \Xi Config \\
+  g? : Gateway \\
+  m? : ModelId \\
+  force? : Bool \\
+  err! : \num
+\where
+  m? \in claudeIds \\
+  m? \notin \dom (gwCatalog~g?) \\
+  force? = no \\
+  err! = 2
+\end{schema}
+
+\begin{schema}{UseRefusedGateway}
+  \Xi Config \\
+  g? : Gateway \\
+  m? : ModelId \\
+  force? : Bool \\
+  err! : \num
+\where
+  m? \in claudeIds \\
+  g? \notin usableGateways \\
+  err! = 3
+\end{schema}
+
+\begin{zed}
+  Use \defs (UseOk \lor UseForced) \lor \\
+  \t1 (UseRefusedNonClaude \lor \\
+  \t2 (UseRefusedUnknown \lor UseRefusedGateway))
+\end{zed}
+
+\section{Operation: \texttt{auth}}
+
+Set the auth mode, preserving the current route. $subauth$ (the subscription
+credential) is always legitimate here: this tool is Claude Code, Anthropic's own
+client, and $usableGateways$ already requires the Anthropic protocol. The only
+refusal is a gateway that does not accept the requested mode.
+
+\begin{schema}{AuthOk}
+  \Delta Config \\
+  newauth? : AuthMode
+\where
+  sel' = sel \\
+  selGw' = selGw \\
+  activeGw' = activeGw \\
+  routed' = routed \\
+  auth' = newauth? \\
+  wire' = wire \\
+  override' = override
+\end{schema}
+
+\begin{zed}
+  Auth \defs AuthOk
+\end{zed}
+
+\section{Operations: gateway-on, \texttt{direct}, \texttt{toggle}}
+
+\begin{schema}{GatewayOn}
+  \Delta Config
+\where
+  selGw \in usableGateways \\
+  sel' = sel \\
+  selGw' = selGw \\
+  activeGw' = selGw \\
+  routed' = yes \\
+  auth' = auth \\
+  \dom wire' = \{ main, tier, small \} \\
+  wire'~main = sel \\
+  wire'~tier = tierId~(selGw, sel) \\
+  wire'~small = tierId~(selGw, sel) \\
+  override' = yes
+\end{schema}
+
+\begin{schema}{Direct}
+  \Delta Config
+\where
+  routed' = no \\
+  sel' = sel \\
+  selGw' = selGw \\
+  activeGw' = activeGw \\
+  auth' = auth \\
+  wire' = \emptyset \\
+  override' = no
+\end{schema}
+
+\begin{schema}{Toggle}
+  \Delta Config
+\where
+  sel' = sel \\
+  selGw' = selGw \\
+  ( routed = no \implies \\
+  \t1 ( routed' = yes \land activeGw' = selGw \land auth' = auth \land \\
+  \t2   selGw \in usableGateways \land \\
+  \t2   \dom wire' = \{ main, tier, small \} \land \\
+  \t2   wire'~main = sel \land \\
+  \t2   wire'~tier = tierId~(selGw, sel) \land \\
+  \t2   wire'~small = tierId~(selGw, sel) \land \\
+  \t2   override' = yes ) ) \\
+  ( routed = yes \implies \\
+  \t1 ( routed' = no \land activeGw' = activeGw \land auth' = auth \land \\
+  \t2   wire' = \emptyset \land override' = no ) )
+\end{schema}
+
+\section{Read-only operations: \texttt{status}, \texttt{list}, \texttt{verify}}
+
+$Verify$ is the probe: $ok! = 1$ exactly when routed, well-formed (all three
+request kinds present, so a missing tier/small slot cannot pass vacuously),
+every request reaches the selection's provider, and the override is present.
+
+\begin{schema}{Status}
+  \Xi Config \\
+  repSel! : ModelId \\
+  repGw! : Gateway \\
+  repRouted! : Bool \\
+  repAuth! : AuthMode
+\where
+  repSel! = sel \\
+  repGw! = activeGw \\
+  repRouted! = routed \\
+  repAuth! = auth
+\end{schema}
+
+\begin{schema}{List}
+  \Xi Config \\
+  cat! : \power ModelId
+\where
+  cat! = validOn~activeGw \cap claudeIds
+\end{schema}
+
+\begin{schema}{VerifyPass}
+  \Xi Config \\
+  WellFormed \\
+  ok! : \num
+\where
+  routed = yes \\
+  ( \forall k : \dom wire @ \\
+  \t1 provOn~(activeGw, wire~k) = provOn~(activeGw, sel) ) \\
+  override = yes \\
+  ok! = 1
+\end{schema}
+
+\begin{schema}{VerifyFail}
+  \Xi Config \\
+  ok! : \num
+\where
+  ( routed = no \lor \\
+  \t1 ( \lnot ( \dom wire = \{ main, tier, small \} ) ) \lor \\
+  \t1 ( \exists k : \dom wire @ \\
+  \t2   provOn~(activeGw, wire~k) \neq provOn~(activeGw, sel) ) \lor \\
+  \t1 override = no ) \\
+  ok! = 0
+\end{schema}
+
+\begin{zed}
+  Verify \defs VerifyPass \lor VerifyFail
+\end{zed}
+
+\section{The system invariant}
+
+Routed, the configuration is well-formed, every request carries its correct wire
+target and reaches the selection's provider, and the override is present. Stated
+as a machine-checkable theorem.
+
+\begin{schema}{SystemOK}
+  WellFormed
+\where
+  routed = yes \implies \\
+  \t1 ( ( \forall k : \dom wire @ \\
+  \t2     wire~k = ( \IF k = main \THEN sel \ELSE tierId~(activeGw, sel) ) ) \land \\
+  \t1   ( \forall k : \dom wire @ \\
+  \t2     provOn~(activeGw, wire~k) = provOn~(activeGw, sel) ) \land \\
+  \t1   override = yes )
+\end{schema}
+
+\begin{theorem}{ApplyGivesSystemOK}
+  \forall Config'; g? : Gateway; m? : ModelId @ \\
+  \t1 ( \exists Config @ ApplyGateway ) \implies \\
+  \t2 ( \theta Config' \in \{ SystemOK @ \theta Config \} )
+\end{theorem}
+
+\section{On-disk configuration}
+
+Claude Code's config lives in two files: the managed block in
+$DIR$\texttt{/.envrc.local} (environment) and \texttt{.claude/settings.local.json}
+(\texttt{modelOverrides}). A slot holds a concrete id or $inherit$. A main slot
+\emph{resolves to the selection} ($inherit$ or $fixed~sel$); a tier/small slot
+\emph{resolves within the family} ($inherit$ or a $fixed$ entitled id in the
+selection's provider family).
+
+\begin{zed}
+  Slot ::= inherit | fixed \ldata ModelId \rdata
+\end{zed}
+
+\begin{axdef}
+  resolves : ModelId \fun \power Slot
+\where
+  \forall m : ModelId @ \\
+  \t1 resolves~m = \{ inherit \} \cup \{ s : Slot | s = fixed~m \}
+\end{axdef}
+
+\begin{axdef}
+  resolvesFamily : Gateway \cross ModelId \pfun \power Slot
+\where
+  \forall g : Gateway; m : ModelId @ \\
+  \t1 ( ( g, m ) \in \dom resolvesFamily \iff m \in gwServes~g ) \land \\
+  \t1 ( m \in gwServes~g \implies \\
+  \t2   resolvesFamily~(g, m) = \{ inherit \} \cup \\
+  \t3   \{ s : Slot; i : gwServes~g | s = fixed~i \land \\
+  \t4     gwCatalog~g~i = gwCatalog~g~m @ s \} )
+\end{axdef}
+
+Slots: $ccMain$ (\texttt{ANTHROPIC\_MODEL}, the selection verbatim, no $[1m]$
+marker --- the marker breaks the override-map key match); the four tier aliases
+$ccOpus$/$ccSonnet$/$ccHaiku$/$ccFable$
+(\texttt{ANTHROPIC\_DEFAULT\_\{OPUS,SONNET,HAIKU,FABLE\}\_MODEL}); $ccSmall$
+(\texttt{ANTHROPIC\_SMALL\_FAST\_MODEL}); and $ccOverride$ (the
+\texttt{modelOverrides} map carrying the canonical-key and raw-identity entries).
+
+\begin{schema}{ClaudeCodeConfig}
+  ccMain, ccOpus, ccSonnet, ccHaiku, ccFable, ccSmall : Slot \\
+  ccOverride : Bool
+\end{schema}
+
+Claude Code is correct when routed iff the main slot resolves to the selection,
+the override is present, and every tier/small slot resolves within the family.
+
+\begin{schema}{ClaudeCodeOK}
+  ClaudeCodeConfig \\
+  sel : ModelId \\
+  selGw : Gateway
+\where
+  sel \in gwServes~selGw \\
+  ccMain \in resolves~sel \\
+  ccOpus \in resolvesFamily~(selGw, sel) \land ccSonnet \in resolvesFamily~(selGw, sel) \\
+  ccHaiku \in resolvesFamily~(selGw, sel) \land ccFable \in resolvesFamily~(selGw, sel) \\
+  ccSmall \in resolvesFamily~(selGw, sel) \\
+  ccOverride = yes
+\end{schema}
+
+\section{Why the hard parts are contained}
+
+Everything in this spec that is not in \texttt{model-provider-fleet} ---
+$CanonId$, $gwCanon$, $wireOf$, $tierId$, $resolvesFamily$, the override, the
+tier/small request kinds, the $subauth$ mode, the \texttt{unrecognized\_model}
+refusal --- exists solely because Claude Code canonicalizes, aliases tiers, and
+is Anthropic's own subscription client. Confining it to a single-harness tool
+means a change to any OpenAI-protocol harness can never regress this path, and a
+change here can never regress the fleet. The complexity is irreducible, but it is
+now bounded, named, and model-checked rather than tangled through a tool that
+also has to serve three harnesses that need none of it.
+
+\end{document}

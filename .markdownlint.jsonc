@@ -1,0 +1,28 @@
+{
+  // Disable line length — tables, URLs, and pattern descriptions routinely exceed any limit
+  "MD013": false,
+  // Disable table column style — compact pipes are fine
+  "MD060": false,
+  // Allow duplicate headings under different parents (CHANGELOG, ADR patterns)
+  "MD024": { "siblings_only": true },
+  // Allow img and p elements — needed for README screenshot layouts with width/align
+  "MD033": { "allowed_elements": ["details", "img", "p", "summary"] },
+  // Allow unlabelled fenced blocks (shell snippets, pseudo-code, etc.)
+  "MD040": false,
+  // Existing docs use multiple blank lines for visual section separation
+  "MD012": false,
+  // Existing docs use bold as structural emphasis (not headings)
+  "MD036": false,
+  // Existing docs use lists directly after block elements
+  "MD032": false,
+  // Allow hard tabs in code examples and tables
+  "MD010": false,
+  // Allow multiple H1s in long design docs (DESIGN.md, build-plan.md)
+  "MD025": false,
+  // Allow heading increments to skip levels in design docs
+  "MD001": false,
+  // Allow headings without surrounding blank lines in dense docs
+  "MD022": false,
+  // Allow fences without surrounding blank lines in code-heavy docs
+  "MD031": false
+}

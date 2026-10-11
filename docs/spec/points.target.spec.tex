@@ -1,0 +1,581 @@
+\documentclass{article}
+\usepackage{fuzz}
+\makeatletter
+\newenvironment{theorem}[1]{\medskip\noindent\textbf{Theorem (#1).}\@nameuse{zed}}{\@nameuse{endzed}}
+\makeatother
+
+\begin{document}
+
+\title{A Formal Specification of \texttt{model-provider} (target state: a routing tool, multi-source)}
+\author{Punt Labs}
+\maketitle
+
+\section{Purpose and scope}
+
+This is the \emph{target} specification --- the robust design a from-scratch
+re-implementation targets --- paired with
+\texttt{model-provider.current.spec.tex}, which models the tool as built today.
+
+The organising idea, reached by separating two axes the combined tool conflated:
+\emph{routing} (how a request reaches an upstream --- base URL, auth, which
+source) is session-global per harness; \emph{model-choice} (which model serves a
+request) is per-agent, user-authored, and out of scope. \texttt{model-provider}
+owns routing. Its whole job is: the operator picks, per harness, a \emph{source}
+to route through and a default model, and the tool writes exactly that route so
+the chosen model --- and any model any agent later names --- reaches the upstream
+the operator picked.
+
+\textbf{The user picks the route.} There is no tool-defined precedence and no
+ban on overlap: if two sources both serve a provider, the operator simply routes
+a given harness through whichever source they prefer. \emph{That choice is the
+entire tool.} The managed state is therefore a per-harness map from harness to
+source, set by the operator, never derived.
+
+\textbf{Multiple sources.} One operator may have a single source (a gateway like
+Bifrost that serves every provider and carries both protocols); another may have
+several narrow sources (direct OpenAI, OpenRouter) and no gateway at all. The
+spec models a \emph{set} of configured sources and a per-harness route, so the
+single-gateway case is just the degenerate ``every harness routed through one
+source that serves everything.''
+
+\section{Given sets and enumerations}
+
+A model id is an opaque catalog token (e.g.
+\texttt{openrouter/anthropic/claude-opus-4.8}); its leading segment names a
+provider. A provider is the upstream a source routes to (\texttt{anthropic},
+\texttt{openai}, \texttt{bedrock}, \texttt{openrouter} as an aggregator). A
+source is a configured route target: a gateway (Bifrost, Envoy, AgentGateway) or
+a direct vendor/aggregator endpoint.
+
+\begin{zed}
+  [ModelId, Provider, Source]
+\end{zed}
+
+The four harnesses.
+
+\begin{zed}
+  Harness ::= claudecode | codex | pi | opencode
+\end{zed}
+
+The protocol each harness speaks. Claude Code speaks Anthropic; the other three
+speak OpenAI. A source must expose a harness's protocol to carry it.
+
+\begin{zed}
+  Protocol ::= anthropic | openai
+\end{zed}
+
+Auth modes a source may accept: a per-host virtual key / API key ($vkauth$), or
+the operator's Claude subscription OAuth ($subauth$).
+
+\begin{zed}
+  AuthMode ::= vkauth | subauth
+\end{zed}
+
+Claude Code's built-in model-alias tiers --- the Agent tool's
+\texttt{opus|sonnet|haiku|fable} knobs. Not user agent definitions; built-in
+alias slots the tool sets so a model-less spawn resolves to a routable id. A
+fixed, finite set.
+
+\begin{zed}
+  Tier ::= opus | sonnet | haiku | fable
+\end{zed}
+
+\section{Harness and model properties}
+
+Which protocol each harness speaks.
+
+\begin{axdef}
+  speaks : Harness \fun Protocol
+\where
+  speaks = \{ claudecode \mapsto anthropic, \\
+  \t1         codex \mapsto openai, \\
+  \t1         pi \mapsto openai, \\
+  \t1         opencode \mapsto openai \}
+\end{axdef}
+
+Which harnesses canonicalize the configured id (strip the provider prefix),
+losing the routing information unless an override restores the verbatim id. Only
+Claude Code.
+
+\begin{axdef}
+  canonicalizes : \power Harness
+\where
+  canonicalizes = \{ claudecode \}
+\end{axdef}
+
+Which harnesses present a native model picker that validates against a
+tool-written list (so the tool must populate it). pi and opencode do; codex and
+Claude Code do not.
+
+\begin{axdef}
+  showsPicker : \power Harness
+\where
+  showsPicker = \{ pi, opencode \}
+\end{axdef}
+
+Every model id carries a provider --- the only thing routing depends on, since a
+source fans out by provider. Total, so there are no partial-application gaps.
+
+\begin{axdef}
+  providerOf : ModelId \fun Provider
+\end{axdef}
+
+\section{The source contract}
+
+For each source: $srcServes$ is the set of providers this account is entitled to
+reach through it (a gateway serves many; a direct source one or few; the Bedrock
+Anthropic-models entitlement gap is one such restriction). $srcProtocols$ is the
+protocols it exposes; $srcAuth$ the auth modes it accepts. Every source serves at
+least one provider, exposes at least one protocol, and accepts at least one auth
+mode.
+
+\begin{axdef}
+  srcServes : Source \fun \power Provider \\
+  srcProtocols : Source \fun \power Protocol \\
+  srcAuth : Source \fun \power AuthMode
+\where
+  \forall s : Source @ \\
+  \t1 srcServes~s \neq \emptyset \land \\
+  \t1 srcProtocols~s \neq \emptyset \land \\
+  \t1 srcAuth~s \neq \emptyset
+\end{axdef}
+
+The universe contains at least one \emph{Anthropic-capable} source with a
+routable model and both auth modes --- a witness, not a requirement on any
+particular configuration. Its sole purpose is to force the model checker's
+constant search to admit a source through which Claude Code can route, so the
+Claude-Code guarantees (override, four-alias routability, the $subauth$ path) are
+exercised on reachable states rather than passing vacuously. Operators with no
+Anthropic source simply never route Claude Code; this witness does not oblige
+them to.
+
+\begin{axdef}
+  anthropicWitness : Source \\
+  anthropicModel : ModelId
+\where
+  anthropic \in srcProtocols~anthropicWitness \\
+  openai \in srcProtocols~anthropicWitness \\
+  srcAuth~anthropicWitness = \{ vkauth, subauth \} \\
+  providerOf~anthropicModel \in srcServes~anthropicWitness
+\end{axdef}
+
+The picker pattern: the set of ids the operator's picker expression matches (a
+regex in the implementation; its match set here). The native picker offers the
+pattern intersected with what is routable on that harness's source --- a view,
+never a constraint on what may be routed.
+
+\begin{axdef}
+  matchesPattern : \power ModelId
+\end{axdef}
+
+\section{Configuration state}
+
+The managed state is routing, per harness, plus the fixtures the one
+canonicalizing harness needs. $configured$ is the set of sources the operator
+has set up. $routeVia$ maps each \emph{routed} harness to the source the operator
+chose for it; its domain is exactly the harnesses currently on a managed route
+(others are on their vendor default / direct). $model$ gives each routed
+harness its default model; $hauth$ its auth mode. $override$ records which
+canonicalizing harnesses have the \texttt{modelOverrides} fixture written.
+$aliases$ gives Claude Code's four tier knobs. $shown$ gives, for each
+picker-bearing routed harness, the ids its native picker offers.
+
+Agent definitions are deliberately absent: the tool does not model, read, or
+write them. A per-agent model pin is orthogonal user state that routes through
+the same per-harness route.
+
+The invariant folds in \emph{all} route coherence, so every reachable state
+--- not merely states an operation happened to build --- is checked by the model
+checker:
+
+\begin{schema}{Config}
+  configured : \power Source \\
+  routeVia : Harness \pfun Source \\
+  model : Harness \pfun ModelId \\
+  hauth : Harness \pfun AuthMode \\
+  override : \power Harness \\
+  aliases : Tier \pfun ModelId \\
+  shown : Harness \pfun \power ModelId
+\where
+  \dom model = \dom routeVia \\
+  \dom hauth = \dom routeVia \\
+  \ran routeVia \subseteq configured \\
+  override \subseteq canonicalizes \cap \dom routeVia \\
+  \dom shown = showsPicker \cap \dom routeVia \\
+  ( \forall h : \dom routeVia @ \\
+  \t1 speaks~h \in srcProtocols~(routeVia~h) \land \\
+  \t1 providerOf~(model~h) \in srcServes~(routeVia~h) \land \\
+  \t1 hauth~h \in srcAuth~(routeVia~h) \land \\
+  \t1 ( h \in canonicalizes \implies h \in override ) \land \\
+  \t1 ( hauth~h = subauth \implies anthropic \in srcProtocols~(routeVia~h) ) ) \\
+  ( claudecode \in \dom routeVia \implies \\
+  \t1 ( \dom aliases = \{ opus, sonnet, haiku, fable \} \land \\
+  \t1   ( \forall t : \dom aliases @ \\
+  \t2     providerOf~(aliases~t) \in srcServes~(routeVia~claudecode) ) ) ) \\
+  ( claudecode \notin \dom routeVia \implies aliases = \emptyset ) \\
+  ( \forall h : \dom shown @ \\
+  \t1 ( \forall m : shown~h @ \\
+  \t2 m \in matchesPattern \land providerOf~m \in srcServes~(routeVia~h) ) )
+\end{schema}
+
+\section{Initial state}
+
+Never configured: no routed harness, no override, no aliases, no picker lists.
+
+\begin{schema}{Init}
+  Config'
+\where
+  routeVia' = \emptyset \\
+  model' = \emptyset \\
+  hauth' = \emptyset \\
+  override' = \emptyset \\
+  aliases' = \emptyset \\
+  shown' = \emptyset
+\end{schema}
+
+\section{The core guarantees}
+
+Because coherence lives in $Config$, these schemas \emph{name} the guarantees
+for the reader and for targeted checking; they are not the only thing enforcing
+them. Each is falsifiable: a state violating it is not a legal $Config$.
+
+\textbf{Default routability (per harness).} Every routed harness's default model
+reaches its source's providers --- the operator's pick is served, per harness,
+by the source the operator chose. This is about the \emph{selected} model, not a
+definitional set, so it has teeth: a model whose provider the source does not
+serve violates it.
+
+\begin{schema}{DefaultRoutable}
+  Config
+\where
+  \forall h : \dom routeVia @ \\
+  \t1 providerOf~(model~h) \in srcServes~(routeVia~h)
+\end{schema}
+
+\textbf{Protocol coherence.} Every routed harness's source speaks that harness's
+protocol --- Claude Code only ever routes through an Anthropic-capable source,
+the OpenAI harnesses through OpenAI-capable ones.
+
+\begin{schema}{ProtocolCoherent}
+  Config
+\where
+  \forall h : \dom routeVia @ speaks~h \in srcProtocols~(routeVia~h)
+\end{schema}
+
+\textbf{Claude routing-preservation.} When Claude Code is routed, its override is
+written (so its canonicalized id is restored on the wire) and all four tier
+knobs are set to ids routable on its source (so no model-less tier spawn
+mis-routes). The ``all four set'' requirement is what stops a routed-but-empty
+alias state passing as correct.
+
+\begin{schema}{ClaudeRoutingPreserved}
+  Config
+\where
+  claudecode \in \dom routeVia \implies \\
+  \t1 ( claudecode \in override \land \\
+  \t1   \dom aliases = \{ opus, sonnet, haiku, fable \} \land \\
+  \t1   ( \forall t : \dom aliases @ \\
+  \t2     providerOf~(aliases~t) \in srcServes~(routeVia~claudecode) ) )
+\end{schema}
+
+\textbf{Picker soundness.} A native picker never offers an unroutable id: every
+shown id matches the pattern and its provider is served by that harness's
+source. The picker is a view ($shown~h$ need not contain, nor be contained by,
+any particular model --- the operator may route an id the picker does not show).
+An \emph{empty} picker view ($shown~h = \emptyset$) is a legal, intentional state
+(e.g. immediately after routing, before a pattern is applied); the guarantee is
+``every id the picker shows is routable,'' which an empty view satisfies
+correctly --- it withholds nothing unroutable because it shows nothing.
+
+\begin{schema}{PickerSound}
+  Config
+\where
+  \forall h : \dom shown @ \forall m : shown~h @ \\
+  \t1 m \in matchesPattern \land providerOf~m \in srcServes~(routeVia~h)
+\end{schema}
+
+\textbf{The forbidden failure.} A routed harness whose default's provider its
+source does not serve, a canonicalizing harness with no override, or Claude Code
+routed with a tier knob unset or unroutable --- any request that reaches no valid
+upstream. Not a legal $Config$; named as the predicate the invariant excludes.
+
+\begin{schema}{SilentMisroute}
+  configured : \power Source \\
+  routeVia : Harness \pfun Source \\
+  model : Harness \pfun ModelId \\
+  hauth : Harness \pfun AuthMode \\
+  override : \power Harness \\
+  aliases : Tier \pfun ModelId \\
+  shown : Harness \pfun \power ModelId
+\where
+  \dom model = \dom routeVia \\
+  ( ( \exists h : \dom routeVia @ \\
+  \t1 providerOf~(model~h) \notin srcServes~(routeVia~h) ) \lor \\
+  \t1 ( \exists h : canonicalizes \cap \dom routeVia @ h \notin override ) \lor \\
+  \t1 ( claudecode \in \dom routeVia \land \\
+  \t2 \dom aliases \neq \{ opus, sonnet, haiku, fable \} ) )
+\end{schema}
+
+\section{Operation: \texttt{route} --- the operator picks a route}
+
+The one selecting operation. The operator names a set of harnesses $hs?$, a
+source $s?$, a default model $m?$, an auth mode $a?$, and (when Claude Code is in
+$hs?$) the tier ids $tiers?$. It routes exactly those harnesses through $s?$,
+last-write-wins per harness --- so a later \texttt{route} of a different source
+for a harness is the operator changing their preferred route, with no precedence
+rule and no overlap ban. Preconditions (all enforced \emph{in the operation}, so
+the shared effect alone establishes $Config'$):
+$s?$ is configured; $s?$ speaks every chosen harness's protocol; $m?$'s provider
+is served by $s?$; $a?$ is accepted by $s?$; $subauth$ only where $s?$ is
+Anthropic-capable; and if Claude Code is chosen, all four tiers are supplied and
+routable on $s?$.
+
+\begin{schema}{RouteOk}
+  \Delta Config \\
+  hs? : \power Harness \\
+  s? : Source \\
+  m? : ModelId \\
+  a? : AuthMode \\
+  tiers? : Tier \pfun ModelId
+\where
+  hs? \neq \emptyset \\
+  s? \in configured \\
+  ( \forall h : hs? @ speaks~h \in srcProtocols~s? ) \\
+  providerOf~m? \in srcServes~s? \\
+  a? \in srcAuth~s? \\
+  ( a? = subauth \implies anthropic \in srcProtocols~s? ) \\
+  ( claudecode \in hs? \implies \\
+  \t1 ( \dom tiers? = \{ opus, sonnet, haiku, fable \} \land \\
+  \t1   ( \forall t : \dom tiers? @ providerOf~(tiers?~t) \in srcServes~s? ) ) ) \\
+  configured' = configured \\
+  routeVia' = routeVia \oplus \{ h : hs? @ h \mapsto s? \} \\
+  model' = model \oplus \{ h : hs? @ h \mapsto m? \} \\
+  hauth' = hauth \oplus \{ h : hs? @ h \mapsto a? \} \\
+  override' = override \cup ( canonicalizes \cap hs? ) \\
+  ( claudecode \in hs? \implies aliases' = tiers? ) \\
+  ( claudecode \notin hs? \implies aliases' = aliases ) \\
+  shown' = ( showsPicker \cap \dom routeVia' ) \dres shown \\
+  \t1 \oplus \{ h : showsPicker \cap hs? @ h \mapsto \emptyset \}
+\end{schema}
+
+The refusals, each a no-op with a distinct code: source not configured; source
+cannot carry a chosen harness's protocol; the default's provider not served; the
+auth mode not accepted; a $subauth$ request to a non-Anthropic source; or Claude
+Code chosen without all four routable tiers.
+
+\begin{schema}{RouteRefused}
+  \Xi Config \\
+  hs? : \power Harness \\
+  s? : Source \\
+  m? : ModelId \\
+  a? : AuthMode \\
+  tiers? : Tier \pfun ModelId \\
+  err! : \num
+\where
+  ( s? \notin configured \lor \\
+  \t1 ( \exists h : hs? @ speaks~h \notin srcProtocols~s? ) \lor \\
+  \t1 providerOf~m? \notin srcServes~s? \lor \\
+  \t1 a? \notin srcAuth~s? \lor \\
+  \t1 ( a? = subauth \land anthropic \notin srcProtocols~s? ) \lor \\
+  \t1 ( claudecode \in hs? \land \\
+  \t2 \lnot ( \dom tiers? = \{ opus, sonnet, haiku, fable \} \land \\
+  \t3   ( \forall t : \dom tiers? @ providerOf~(tiers?~t) \in srcServes~s? ) ) ) ) \\
+  err! = 1
+\end{schema}
+
+\begin{zed}
+  Route \defs RouteOk \lor RouteRefused
+\end{zed}
+
+\section{Operation: \texttt{unroute} (direct)}
+
+Return a set of harnesses to their vendor defaults: drop them from every managed
+map. Clearing Claude Code also clears the aliases (the invariant requires
+$aliases = \emptyset$ when Claude Code is unrouted).
+
+\begin{schema}{Unroute}
+  \Delta Config \\
+  hs? : \power Harness
+\where
+  configured' = configured \\
+  routeVia' = hs? \ndres routeVia \\
+  model' = hs? \ndres model \\
+  hauth' = hs? \ndres hauth \\
+  override' = override \setminus hs? \\
+  ( claudecode \in hs? \implies aliases' = \emptyset ) \\
+  ( claudecode \notin hs? \implies aliases' = aliases ) \\
+  shown' = hs? \ndres shown
+\end{schema}
+
+\section{Read-only operations: \texttt{status}, \texttt{list}, \texttt{verify}}
+
+$Status$ reports the per-harness route and default. $List$ reports, for a source,
+the providers it serves. $Verify$ is the probe: $ok! = 1$ exactly when the
+configuration is a legal $Config$ in which every routed harness is fully correct
+--- default routable, protocol matched, auth accepted, canonicalizing override
+present, and (if Claude Code routed) all four tiers routable. Because $Config$
+already enforces these, $Verify$ cannot pass a mis-routed state.
+
+\begin{schema}{Status}
+  \Xi Config \\
+  route! : Harness \pfun Source \\
+  dflt! : Harness \pfun ModelId
+\where
+  route! = routeVia \\
+  dflt! = model
+\end{schema}
+
+\begin{schema}{List}
+  \Xi Config \\
+  s? : Source \\
+  provs! : \power Provider
+\where
+  provs! = srcServes~s?
+\end{schema}
+
+\begin{schema}{VerifyPass}
+  \Xi Config \\
+  ok! : \num
+\where
+  ( \forall h : \dom routeVia @ \\
+  \t1 providerOf~(model~h) \in srcServes~(routeVia~h) \land \\
+  \t1 speaks~h \in srcProtocols~(routeVia~h) \land \\
+  \t1 hauth~h \in srcAuth~(routeVia~h) \land \\
+  \t1 ( h \in canonicalizes \implies h \in override ) ) \\
+  ( claudecode \in \dom routeVia \implies \\
+  \t1 \dom aliases = \{ opus, sonnet, haiku, fable \} ) \\
+  ok! = 1
+\end{schema}
+
+\begin{schema}{VerifyFail}
+  \Xi Config \\
+  ok! : \num
+\where
+  ( ( \exists h : \dom routeVia @ \\
+  \t1 providerOf~(model~h) \notin srcServes~(routeVia~h) \lor \\
+  \t1 speaks~h \notin srcProtocols~(routeVia~h) \lor \\
+  \t1 hauth~h \notin srcAuth~(routeVia~h) \lor \\
+  \t1 ( h \in canonicalizes \land h \notin override ) ) \lor \\
+  \t1 ( claudecode \in \dom routeVia \land \\
+  \t2 \dom aliases \neq \{ opus, sonnet, haiku, fable \} ) ) \\
+  ok! = 0
+\end{schema}
+
+\begin{zed}
+  Verify \defs VerifyPass \lor VerifyFail
+\end{zed}
+
+\section{The system invariant and the apply obligation}
+
+$SystemOK$ restates, as a single predicate, that every routed harness is fully
+correct --- it is exactly the body $Config$ enforces, named for checking.
+
+\begin{schema}{SystemOK}
+  Config
+\where
+  ( \forall h : \dom routeVia @ \\
+  \t1 providerOf~(model~h) \in srcServes~(routeVia~h) \land \\
+  \t1 speaks~h \in srcProtocols~(routeVia~h) \land \\
+  \t1 hauth~h \in srcAuth~(routeVia~h) \land \\
+  \t1 ( h \in canonicalizes \implies h \in override ) ) \land \\
+  ( claudecode \in \dom routeVia \implies \\
+  \t1 \dom aliases = \{ opus, sonnet, haiku, fable \} )
+\end{schema}
+
+The real obligation, with no smuggled hypothesis: every harness $RouteOk$
+touches ends routable on the source the operator chose, established by $RouteOk$'s
+own preconditions and effect alone. ProB checks it via \texttt{-cbc\_assertions}.
+
+\begin{theorem}{RouteEstablishesRoutability}
+  \forall \Delta Config; hs? : \power Harness; s? : Source; m? : ModelId; \\
+  \t1 a? : AuthMode; tiers? : Tier \pfun ModelId @ \\
+  \t2 RouteOk \implies \\
+  \t3 ( \forall h : hs? @ \\
+  \t4 providerOf~(model'~h) \in srcServes~(routeVia'~h) )
+\end{theorem}
+
+\section{On-disk configuration: what the tool writes, per source}
+
+The tool writes, for each routed harness, only its \emph{route} (base URL +
+auth, pointing at the chosen source's endpoint) and its \emph{default model} ---
+plus, for Claude Code, the canonicalization override and the four tier knobs,
+and, for pi/opencode, the native picker list. It never writes an agent
+definition.
+
+\textbf{Claude Code.} \texttt{.envrc.local} + \texttt{.claude/settings.local.json}.
+Route: \texttt{ANTHROPIC\_BASE\_URL}, \texttt{ANTHROPIC\_AUTH\_TOKEN}. Default:
+\texttt{ANTHROPIC\_MODEL} (verbatim, no $[1m]$ marker --- it breaks the
+override-key match). Override: \texttt{modelOverrides}. Tier knobs:
+\texttt{ANTHROPIC\_DEFAULT\_\{OPUS,SONNET,HAIKU,FABLE\}\_MODEL} and
+\texttt{ANTHROPIC\_SMALL\_FAST\_MODEL}. No picker. A \texttt{.claude/agents/*.md}
+with its own \texttt{model:} is a user agent definition --- out of scope.
+
+\textbf{codex.} \texttt{config.toml}. Route: the matching
+\texttt{[model\_providers.*]} table. Default: \texttt{model} and the single
+\texttt{[agents] agent\_default\_subagent\_model}. No native picker list, no
+per-agent files.
+
+\textbf{pi.} \texttt{\~{}/.pi/agent/\{settings,models\}.json}. Route: the source
+provider block + \texttt{defaultProvider}. Default: \texttt{defaultModel}.
+Picker: the source provider's \texttt{models} array ($shown$) --- the
+pattern-matched, routable subset. A \texttt{.pi/agents/*.md} frontmatter
+\texttt{model:} is out of scope.
+
+\textbf{opencode.} \texttt{opencode.json}. Route: the
+\texttt{provider.<name>.options} block. Default: global \texttt{model} +
+\texttt{small\_model}. Picker: the \texttt{provider.<name>.models} map ($shown$).
+An \texttt{agent.<name>.model} is out of scope.
+
+The uniform rule: the tool writes the route, the default, and (for picker
+harnesses) the picker view; it never writes an agent's model. A per-agent model
+the user pinned still routes, because $routeVia$ is the one shared route for that
+harness and the source serves whatever provider the pinned id names --- or it
+does not, in which case that is the user's pin to fix, not the tool's.
+
+\section{Sources as conforming instances}
+
+Bifrost is one source: it exposes both protocols and both auth modes and serves
+many providers by fanning out on the model-id prefix --- so a single Bifrost
+source can carry all four harnesses, the single-source operator's case. A
+direct source (direct OpenAI, direct Anthropic) typically exposes one protocol
+and serves one provider; an aggregator (OpenRouter) may expose both protocols and
+serve several providers without being a gateway. The multi-source operator
+composes these: Claude Code routed through an Anthropic-capable source, the
+OpenAI harnesses through whichever source they prefer. Nothing in the spec is
+true only of a gateway; a re-implementation swaps or mixes sources without
+changing the guarantees.
+
+A source that can carry the whole fleet is one exposing both protocols; the spec
+does not require any single such source to exist (the multi-source operator has
+none), only that each routed harness's source speaks that harness's protocol.
+
+\begin{axdef}
+  fleetCapable : \power Source
+\where
+  fleetCapable = \{ s : Source | \\
+  \t1 anthropic \in srcProtocols~s \land openai \in srcProtocols~s \}
+\end{axdef}
+
+\section{Two real-world constraints: compatibility and credential terms}
+
+\textbf{Compatibility (support, not permission).} Anthropic does not support
+routing Claude Code to non-Claude models. This is a support and compatibility
+statement, not a terms violation: with a non-Anthropic default on the Claude Code
+route, tool use, extended thinking, and prompt caching are unvalidated and
+degrade per model, so routability is necessary but not sufficient. Separately,
+MCP tool search and fine-grained tool streaming silently turn off whenever Claude
+Code is routed through any source other than Anthropic-direct; both are
+recoverable via environment variables. These are side obligations of a routed
+Claude Code, named here rather than encoded in the invariant.
+
+\textbf{Credential terms (enforced).} The licensing line runs along the
+credential, not the model: a Claude Pro/Max subscription is licensed for
+Anthropic's own clients (the Claude apps and Claude Code), so spending it on a
+third-party client is the violation --- for any model. Here $subauth$ is the
+subscription-OAuth mode, and $Config$ plus $RouteOk$ permit it only where the
+route is Anthropic-capable, which for a non-Claude harness would require that
+harness to route through an Anthropic source it does not speak to --- excluded by
+protocol coherence. $vkauth$ (per-host keys billing the upstream) is clean
+everywhere.
+
+\end{document}

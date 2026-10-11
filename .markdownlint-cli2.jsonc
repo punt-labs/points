@@ -1,0 +1,4 @@
+{
+  // Markdownlint rules defined in .markdownlint.jsonc at repo root
+  "ignores": ["node_modules/**", ".tmp/**", "**/copilot-session-*.md", ".claude/agents/**", ".punt-labs/ethos/agents/**"]
+}

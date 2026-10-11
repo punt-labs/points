@@ -1,0 +1,745 @@
+\documentclass{article}
+\usepackage{fuzz}
+\makeatletter
+\newenvironment{theorem}[1]{\medskip\noindent\textbf{Theorem (#1).}\@nameuse{zed}}{\@nameuse{endzed}}
+\makeatother
+
+\begin{document}
+
+\title{A Formal Specification of \texttt{model-provider} (current state: faithful to \texttt{model-provider.sh} as built)}
+\author{Punt Labs}
+\maketitle
+
+\section{Purpose and scope}
+
+This document models \texttt{model-provider.sh} \emph{as it is implemented
+today}. It is the faithful companion to \texttt{model-provider.target.spec.tex},
+which models the more robust design we are building toward. Where the two
+differ, this one describes the code; the target one describes the intent. Each
+schema here was checked against the script, and every divergence a peer review
+found between an earlier, idealised draft and the real code is resolved \emph{in
+favour of the code} below.
+
+The current tool takes one operator selection --- a model served by the
+\textbf{Bifrost} gateway (the only gateway it implements) --- and configures
+four AI coding harnesses (Claude Code, codex, pi, opencode). The guarantee it
+actually delivers is weaker and more specific than ``every request serves the
+selection''. First, the \emph{main} request of every harness serves the
+selection. Second, Claude Code's \emph{subagent} (tier-alias) and \emph{small}
+requests are routed to a \emph{different, same-provider-family} id resolved from
+the live catalog --- the highest-version model of that tier in the selection's
+provider family --- not to the selection itself; a haiku subagent is meant to
+run haiku, not to be force-upgraded onto the selection. Third, \texttt{verify}
+probes \emph{only} Claude Code's Anthropic path against Bifrost; on the direct
+route it is a successful no-op, not a failure.
+
+Preconditions are written explicitly so TTF partition analysis can derive test
+cases from each operation's input domain.
+
+\section{Given sets and enumerations}
+
+A model id is an opaque catalog token (e.g.
+\texttt{openrouter/anthropic/claude-opus-4.8}). A provider is the upstream
+Bifrost routes a model to (e.g. \texttt{openrouter}, \texttt{anthropic},
+\texttt{bedrock}) --- in a model id it is the segment before the first slash. A
+canonical id is the base model name Claude Code derives from a model id (e.g.
+\texttt{claude-opus-4-8}).
+
+\begin{zed}
+  [ModelId, Provider, CanonId]
+\end{zed}
+
+The four harnesses.
+
+\begin{zed}
+  Harness ::= claudecode | codex | pi | opencode
+\end{zed}
+
+Each harness issues requests of distinct kinds. \emph{main} is the primary
+loop; \emph{subagent} is a Claude Code Task-tool spawn (resolved through tier
+alias configuration); \emph{small} is a background / side model (Claude Code's
+small-fast model, opencode's title model). Side-requests are first-class: they
+are exactly the paths that fail silently when only the main model is set.
+
+\begin{zed}
+  ReqKind ::= main | subagent | small
+\end{zed}
+
+The route the tool can be in. The current tool implements exactly two: routed
+through Bifrost, or ``direct'' (vendor defaults, no gateway). There is no
+gateway selection --- Bifrost is hardcoded --- so unlike the target spec there
+is no \emph{set} of gateways here, only this route flag.
+
+\begin{zed}
+  Route ::= bifrost | direct
+\end{zed}
+
+Authentication modes a Bifrost route may use: a per-host virtual key
+($vkauth$), or the operator's own subscription OAuth passed through Bifrost
+($subauth$).
+
+\begin{zed}
+  AuthMode ::= vkauth | subauth
+\end{zed}
+
+Booleans. fuzz's mathematical toolkit has no built-in boolean type, so the
+specification defines one; $yes$/$no$ are its values.
+
+\begin{zed}
+  Bool ::= yes | no
+\end{zed}
+
+\section{Harness properties}
+
+Which harnesses \emph{canonicalize} the configured id before sending it (strip
+the provider prefix, rewrite the version), rather than routing it verbatim.
+Only Claude Code does; this is why it needs an override map to send a
+dotted/prefixed id unaltered on the wire.
+
+\begin{axdef}
+  canonicalizes : \power Harness
+\where
+  canonicalizes = \{ claudecode \}
+\end{axdef}
+
+The request kinds each harness actually issues.
+
+\begin{axdef}
+  issues : Harness \fun \power ReqKind
+\where
+  issues = \{ claudecode \mapsto \{ main, subagent, small \}, \\
+  \t1         codex \mapsto \{ main \}, \\
+  \t1         pi \mapsto \{ main \}, \\
+  \t1         opencode \mapsto \{ main, small \} \}
+\end{axdef}
+
+\section{The Bifrost catalog}
+
+The tool reads one live catalog from Bifrost: per model id, the provider it
+routes to. $catalog$ is the set of ids Bifrost knows; the operator may select
+any of them (validation against this set is exactly what \texttt{use} does
+without \texttt{--force}). $provOf$ gives the upstream provider of a model id.
+
+\begin{axdef}
+  catalog : \power ModelId \\
+  provOf : ModelId \pfun Provider
+\where
+  \dom provOf = catalog \\
+  catalog \neq \emptyset
+\end{axdef}
+
+\section{Tier resolution --- the crux of the current design}
+
+For Claude Code, the subagent and small request kinds are \emph{not} served by
+the selection. \texttt{claude\_tier} resolves them, per tier, to the
+highest-version catalog id of that tier \emph{in the selection's provider
+family}. $tierId$ models this: given the selection, it yields the id a tier
+slot is set to. It is a same-family id --- its provider equals the selection's
+provider --- but it is generally a \emph{different model}. On a non-Claude
+selection (no Claude tier exists in that family) the slot is omitted; we model
+that with the selection's own id standing in only to keep the slot total, but
+the fidelity property we assert is provider-equality, not id-equality.
+
+\begin{axdef}
+  tierId : ModelId \fun ModelId
+\where
+  \forall m : ModelId @ \\
+  \t1 m \in catalog \implies \\
+  \t2 ( tierId~m \in catalog \land provOf~(tierId~m) = provOf~m )
+\end{axdef}
+
+The id that reaches the wire for harness $h$, request kind $k$, under selection
+$m$, is written inline where it is used, as the conditional expression
+\[ \IF (h = claudecode \land k \neq main) \THEN tierId~m \ELSE m. \]
+The main kind of every harness, and every kind of a non-canonicalizing harness
+that has only side-slots pinned to the selection, carries $m$ verbatim; Claude
+Code's subagent and small kinds carry $tierId~m$ --- a same-family,
+generally-different id. This is the honest current-state wire target: it does
+\emph{not} claim the selection reaches every request. It is inlined rather than
+packaged as a standalone function because a total function over the
+$Harness \cross ReqKind \cross ModelId$ product is not finitely enumerable by
+the model checker, whereas the inline form ranges only over each harness's
+finite $issues~h$.
+
+\section{Configuration state}
+
+$sel$ is the selection; $route$ records bifrost (routed) or direct; $auth$ the
+auth mode. $wire$ gives, per harness, per issued request kind, the id that will
+actually travel. $overrides$ records, per harness, whether a canonicalization
+override has been written. The selection must be a catalog id \emph{unless} it
+was forced; $forced$ records that, so a \texttt{use --force} of an off-catalog
+id is representable (the real tool writes it to the block).
+
+\begin{schema}{Config}
+  sel : ModelId \\
+  route : Route \\
+  auth : AuthMode \\
+  forced : Bool \\
+  wire : Harness \pfun (ReqKind \pfun ModelId) \\
+  overrides : \power Harness
+\where
+  forced = no \implies sel \in catalog
+\end{schema}
+
+\section{Initial state}
+
+A fresh repo reads \texttt{BIFROST\_ROUTE} with a default of \texttt{bifrost},
+but with no selection and no managed wire --- \texttt{status} reports
+\texttt{route: bifrost} with \texttt{model: <unset>}. We model the never-used
+state as direct with an empty wire, matching what the managed block actually
+contains (no \texttt{ANTHROPIC\_MODEL} line) before the first \texttt{use};
+the route-default read-back is a status concern, not a wire state.
+
+\begin{schema}{Init}
+  Config'
+\where
+  route' = direct \\
+  auth' = vkauth \\
+  forced' = no \\
+  wire' = \{ h : \{ claudecode, codex, pi, opencode \} @ h \mapsto \emptyset \} \\
+  overrides' = \emptyset
+\end{schema}
+
+\section{Well-formedness}
+
+$wire$ is defined for exactly the four harnesses and, for each, exactly the
+request kinds it issues; overrides are only ever recorded for canonicalizing
+harnesses.
+
+\begin{schema}{WellFormed}
+  Config
+\where
+  \dom wire = \{ claudecode, codex, pi, opencode \} \\
+  ( \forall h : \dom wire @ \dom (wire~h) = issues~h ) \\
+  overrides \subseteq canonicalizes
+\end{schema}
+
+\section{The core guarantee (as built)}
+
+\textbf{Routing correctness, current.} When routed through Bifrost, every
+request every harness issues carries the inline wire target --- the
+selection for main kinds, the same-family tier id for Claude Code's
+side-requests --- and Claude Code has the override that stops its main id being
+re-canonicalized.
+
+\begin{schema}{RoutingCorrectCur}
+  WellFormed
+\where
+  route = bifrost \implies \\
+  \t1 ( ( \forall h : \dom wire @ \forall k : \dom (wire~h) @ \\
+  \t2     (wire~h)~k = ( \IF (h = claudecode \land k \neq main) \THEN tierId~sel \ELSE sel ) ) \land \\
+  \t1   canonicalizes \subseteq overrides )
+\end{schema}
+
+\textbf{Provider fidelity --- the real invariant.} The honest guarantee the
+current code makes: every request, main or side, reaches the \emph{selection's
+provider}, even when a side-request runs a different model in that family.
+This is weaker than id-fidelity and is exactly what \texttt{claude\_tier}
+guarantees by construction (it only ever picks within the selection's family).
+
+\begin{schema}{ProviderFidelityCur}
+  RoutingCorrectCur
+\where
+  route = bifrost \implies \\
+  \t1 ( \forall h : \dom wire @ \forall k : \dom (wire~h) @ \\
+  \t2   provOf~((wire~h)~k) = provOf~sel )
+\end{schema}
+
+\textbf{The forbidden failure.} The historical bug: a canonicalizing harness
+sent the base id, or a side-request fell back to an unroutable built-in whose
+provider is not the selection's. Named as the predicate the configuration makes
+unreachable while routed --- the negation of the two guarantees above.
+
+\begin{schema}{SilentMisrouteCur}
+  WellFormed
+\where
+  route = bifrost \\
+  ( ( \exists h : \dom wire @ \exists k : \dom (wire~h) @ \\
+  \t1   provOf~((wire~h)~k) \neq provOf~sel ) \lor \\
+  \t1 ( \exists h : canonicalizes @ h \notin overrides ) )
+\end{schema}
+
+\section{Shared effect: applying the Bifrost configuration}
+
+The effect every selecting / re-applying operation shares: route through
+Bifrost with selection $m$, rebuild $wire$ so each issued request kind carries
+the inline wire target (the selection, or its same-family tier id for Claude
+Code's side-requests), and record overrides for exactly the canonicalizing
+harnesses. $fwd?$ carries the forced flag through to state.
+
+\begin{schema}{ApplyBifrost}
+  \Delta Config \\
+  m? : ModelId \\
+  fwd? : Bool
+\where
+  sel' = m? \\
+  route' = bifrost \\
+  auth' = auth \\
+  forced' = fwd? \\
+  \dom wire' = \{ claudecode, codex, pi, opencode \} \\
+  ( \forall h : \dom wire' @ \\
+  \t1 wire'~h = \{ k : issues~h @ \\
+  \t2   k \mapsto ( \IF (h = claudecode \land k \neq main) \THEN tierId~m? \ELSE m? ) \} ) \\
+  overrides' = canonicalizes
+\end{schema}
+
+\section{Operation: \texttt{use}}
+
+Selecting a model. Input is a model id and a $force$ flag (no gateway input ---
+Bifrost is hardcoded). The precondition domain partitions into: (a) valid --- id
+in the live catalog; (b) forced --- $force? = yes$ bypasses the catalog check;
+(c) refused --- id not in catalog and not forced. An id that strips to empty is
+refused even under force, but that is a lexical guard on the raw argument, below
+the model layer, so it is noted here in prose rather than as a state schema.
+
+\begin{schema}{UseOk}
+  ApplyBifrost \\
+  force? : Bool
+\where
+  m? \in catalog \\
+  fwd? = force? \\
+  force? = no
+\end{schema}
+
+A forced selection: the id need not be in the catalog, and the forced flag is
+recorded so $Config$ admits the off-catalog $sel$. This partition is
+\emph{reachable} here (unlike the target spec's idealised version) precisely
+because $Config$ carries $forced$.
+
+\begin{schema}{UseForced}
+  ApplyBifrost \\
+  force? : Bool
+\where
+  force? = yes \\
+  fwd? = yes
+\end{schema}
+
+The refusal: id unknown to the catalog and not forced. No state change.
+
+\begin{schema}{UseRefused}
+  \Xi Config \\
+  m? : ModelId \\
+  force? : Bool \\
+  err! : \num
+\where
+  m? \notin catalog \\
+  force? = no \\
+  err! = 1
+\end{schema}
+
+\begin{zed}
+  Use \defs (UseOk \lor UseForced) \lor UseRefused
+\end{zed}
+
+\section{Operation: \texttt{auth}}
+
+Set the auth mode and \emph{re-apply the current route unchanged}. The real
+tool passes the current route through (\texttt{write\_block "\$route" \ldots}):
+from bifrost it re-applies bifrost; from direct it stays direct. The
+\texttt{require\_model\_for\_bifrost} guard refuses only when the current route
+is bifrost \emph{and} no selection has ever been made --- so \texttt{direct}
+then \texttt{auth vk} must succeed and stay direct. We model the selection-made
+precondition as $sel \in catalog \lor forced = yes$ (a real selection exists).
+
+\begin{schema}{AuthOkBifrost}
+  \Delta Config \\
+  newauth? : AuthMode
+\where
+  route = bifrost \\
+  ( sel \in catalog \lor forced = yes ) \\
+  sel' = sel \\
+  route' = bifrost \\
+  auth' = newauth? \\
+  forced' = forced \\
+  \dom wire' = \{ claudecode, codex, pi, opencode \} \\
+  ( \forall h : \dom wire' @ \\
+  \t1 wire'~h = \{ k : issues~h @ \\
+  \t2   k \mapsto ( \IF (h = claudecode \land k \neq main) \THEN tierId~sel \ELSE sel ) \} ) \\
+  overrides' = canonicalizes
+\end{schema}
+
+On the direct route, \texttt{auth} changes only the recorded auth mode: the
+direct branch of \texttt{write\_block} ignores the model and writes no wire, so
+no \texttt{ANTHROPIC\_MODEL} is touched and the guard does not fire.
+
+\begin{schema}{AuthOkDirect}
+  \Delta Config \\
+  newauth? : AuthMode
+\where
+  route = direct \\
+  sel' = sel \\
+  route' = direct \\
+  auth' = newauth? \\
+  forced' = forced \\
+  wire' = wire \\
+  overrides' = overrides
+\end{schema}
+
+The refusal: current route is bifrost but no selection has ever been made.
+
+\begin{schema}{AuthRefusedNoModel}
+  \Xi Config \\
+  newauth? : AuthMode \\
+  err! : \num
+\where
+  route = bifrost \\
+  sel \notin catalog \\
+  forced = no \\
+  err! = 1
+\end{schema}
+
+\begin{zed}
+  Auth \defs (AuthOkBifrost \lor AuthOkDirect) \lor AuthRefusedNoModel
+\end{zed}
+
+\section{Operations: \texttt{bifrost}, \texttt{direct}, \texttt{toggle}}
+
+$GatewayOn$ (the \texttt{bifrost} command) re-applies the current selection on
+Bifrost; it is refused with no selection (the same
+\texttt{require\_model\_for\_bifrost} guard). $Direct$ withdraws the managed
+wire and overrides, retaining $sel$/$auth$ so a later $GatewayOn$ re-applies
+them. \texttt{toggle} flips the route, applying the same no-selection guard
+when it would turn Bifrost on.
+
+\begin{schema}{GatewayOn}
+  \Delta Config
+\where
+  ( sel \in catalog \lor forced = yes ) \\
+  sel' = sel \\
+  route' = bifrost \\
+  auth' = auth \\
+  forced' = forced \\
+  \dom wire' = \{ claudecode, codex, pi, opencode \} \\
+  ( \forall h : \dom wire' @ \\
+  \t1 wire'~h = \{ k : issues~h @ \\
+  \t2   k \mapsto ( \IF (h = claudecode \land k \neq main) \THEN tierId~sel \ELSE sel ) \} ) \\
+  overrides' = canonicalizes
+\end{schema}
+
+\begin{schema}{Direct}
+  \Delta Config
+\where
+  route' = direct \\
+  sel' = sel \\
+  auth' = auth \\
+  forced' = forced \\
+  wire' = \{ h : \{ claudecode, codex, pi, opencode \} @ h \mapsto \emptyset \} \\
+  overrides' = \emptyset
+\end{schema}
+
+\begin{schema}{Toggle}
+  \Delta Config
+\where
+  sel' = sel \\
+  auth' = auth \\
+  forced' = forced \\
+  ( route = direct \implies \\
+  \t1 ( route' = bifrost \land ( sel \in catalog \lor forced = yes ) \land \\
+  \t2   \dom wire' = \{ claudecode, codex, pi, opencode \} \land \\
+  \t2   ( \forall h : \dom wire' @ \\
+  \t3     wire'~h = \{ k : issues~h @ \\
+  \t4       k \mapsto ( \IF (h = claudecode \land k \neq main) \THEN tierId~sel \ELSE sel ) \} ) \land \\
+  \t2   overrides' = canonicalizes ) ) \\
+  ( route = bifrost \implies \\
+  \t1 ( route' = direct \land \\
+  \t2   wire' = \{ h : \{ claudecode, codex, pi, opencode \} @ h \mapsto \emptyset \} \land \\
+  \t2   overrides' = \emptyset ) )
+\end{schema}
+
+\section{Read-only operations: \texttt{status}, \texttt{list}, \texttt{verify}}
+
+$Status$ reports the selection, route and auth. $List$ reports the catalog.
+$Verify$ is scoped to what the real \texttt{verify\_model} does: it probes
+\emph{only Claude Code's} Anthropic path against Bifrost. On the direct route it
+is a successful no-op (the tool prints a note and returns success) --- this is
+$VerifyDirectOk$, not a failure.
+
+\begin{schema}{Status}
+  \Xi Config \\
+  repSel! : ModelId \\
+  repRoute! : Route \\
+  repAuth! : AuthMode
+\where
+  repSel! = sel \\
+  repRoute! = route \\
+  repAuth! = auth
+\end{schema}
+
+\begin{schema}{List}
+  \Xi Config \\
+  cat! : \power ModelId
+\where
+  cat! = catalog
+\end{schema}
+
+\texttt{verify} succeeds when, routed through Bifrost, Claude Code's \emph{main}
+request carries the selection and the override is present. It deliberately does
+\emph{not} check codex/pi/opencode (those are separate manual checks in the
+test plan) and does not assert the selection on Claude Code's side-requests
+(they carry tier ids). $WellFormed$ is included so a missing Claude Code main
+slot cannot vacuously pass.
+
+\begin{schema}{VerifyPass}
+  \Xi Config \\
+  WellFormed \\
+  ok! : \num
+\where
+  route = bifrost \\
+  (wire~claudecode)~main = sel \\
+  claudecode \in overrides \\
+  ok! = 1
+\end{schema}
+
+On the direct route, \texttt{verify} is a successful no-op: nothing routes
+through Bifrost, so there is nothing to prove.
+
+\begin{schema}{VerifyDirectOk}
+  \Xi Config \\
+  ok! : \num
+\where
+  route = direct \\
+  ok! = 1
+\end{schema}
+
+The genuine failure: routed, but Claude Code's main request does not carry the
+selection, or the override is missing.
+
+\begin{schema}{VerifyFail}
+  \Xi Config \\
+  ok! : \num
+\where
+  route = bifrost \\
+  ( (wire~claudecode)~main \neq sel \lor claudecode \notin overrides ) \\
+  ok! = 0
+\end{schema}
+
+\begin{zed}
+  Verify \defs (VerifyPass \lor VerifyDirectOk) \lor VerifyFail
+\end{zed}
+
+\section{The system invariant}
+
+Whenever routed through Bifrost, the configuration is well-formed, every
+request carries the inline wire target, and every request reaches the
+selection's provider. This is the precise ``works as built'' property. It holds
+by construction of the operations (each rebuilds $wire$ via the inline target); the
+theorem below makes that machine-checkable.
+
+\begin{schema}{SystemOKCur}
+  WellFormed
+\where
+  route = bifrost \implies \\
+  \t1 ( ( \forall h : \dom wire @ \forall k : \dom (wire~h) @ \\
+  \t2     (wire~h)~k = ( \IF (h = claudecode \land k \neq main) \THEN tierId~sel \ELSE sel ) ) \land \\
+  \t1   ( \forall h : \dom wire @ \forall k : \dom (wire~h) @ \\
+  \t2     provOf~((wire~h)~k) = provOf~sel ) \land \\
+  \t1   canonicalizes \subseteq overrides )
+\end{schema}
+
+A machine-checkable obligation: every state reached by the shared apply effect
+satisfies the system invariant. $ApplyBifrost$'s postcondition builds a
+well-formed $wire$ from the inline target with overrides for the canonicalizing
+harnesses, so the invariant follows. Stating it as a theorem lets
+\texttt{probcli -cbc\_assertions} actually check it, rather than relying on
+prose.
+
+\begin{theorem}{ApplyGivesSystemOKCur}
+  \forall Config'; m? : ModelId; fwd? : Bool @ \\
+  \t1 ( \exists Config @ ApplyBifrost ) \implies \\
+  \t2 ( \theta Config' \in \{ SystemOKCur @ \theta Config \} )
+\end{theorem}
+
+\section{Per-harness on-disk configuration}
+
+The abstract $wire$ states the guarantee; this section grounds it in each
+harness's actual files and model slots, including sub-agent / extension slots,
+as confirmed against the on-disk configs. A model slot holds a concrete id, or
+$inherit$ (unset --- the harness falls back to its parent / main model).
+
+\begin{zed}
+  Slot ::= inherit | fixed \ldata ModelId \rdata
+\end{zed}
+
+A slot \emph{resolves to the selection} when it is $inherit$ or $fixed~sel$.
+For Claude Code's tier/small slots the current code does \emph{not} target the
+selection, so a second predicate, $resolvesFamily$, captures the real
+guarantee: the slot is $inherit$, or a $fixed$ id in the selection's provider
+family.
+
+\begin{axdef}
+  resolves : ModelId \fun \power Slot
+\where
+  \forall m : ModelId @ \\
+  \t1 resolves~m = \{ inherit \} \cup \{ s : Slot | s = fixed~m \}
+\end{axdef}
+
+\begin{axdef}
+  resolvesFamily : ModelId \fun \power Slot
+\where
+  \forall m : ModelId @ \\
+  \t1 resolvesFamily~m = \{ inherit \} \cup \\
+  \t2 \{ s : Slot; i : ModelId | s = fixed~i \land i \in catalog \land \\
+  \t3   provOf~i = provOf~m @ s \}
+\end{axdef}
+
+\subsection{Claude Code}
+
+Config lives in the managed block in $DIR$\texttt{/.envrc.local} and
+\texttt{.claude/settings.local.json} (\texttt{modelOverrides}). Slots: $ccMain$
+(\texttt{ANTHROPIC\_MODEL}); the four tier-alias slots
+$ccOpus$/$ccSonnet$/$ccHaiku$/$ccFable$
+(\texttt{ANTHROPIC\_DEFAULT\_\{OPUS,SONNET,HAIKU,FABLE\}\_MODEL}); and $ccSmall$
+(\texttt{ANTHROPIC\_SMALL\_FAST\_MODEL}). $ccOverride$ records the
+\texttt{modelOverrides} map (canonical-key and raw-identity entries).
+
+\begin{schema}{ClaudeCodeConfig}
+  ccMain, ccOpus, ccSonnet, ccHaiku, ccFable, ccSmall : Slot \\
+  ccOverride : Bool
+\end{schema}
+
+Claude Code is correct, as built, when the \emph{main} slot resolves to the
+selection and the override is present, and each tier/small slot resolves
+\emph{within the selection's family} (it is set to a same-family tier id, or
+left to inherit). This is the faithful \texttt{ClaudeCodeOK}: it does not demand
+the tier slots equal the selection, because the code does not set them that way.
+
+\begin{schema}{ClaudeCodeOKCur}
+  ClaudeCodeConfig \\
+  sel : ModelId
+\where
+  ccMain \in resolves~sel \\
+  ccOpus \in resolvesFamily~sel \land ccSonnet \in resolvesFamily~sel \\
+  ccHaiku \in resolvesFamily~sel \land ccFable \in resolvesFamily~sel \\
+  ccSmall \in resolvesFamily~sel \\
+  ccOverride = yes
+\end{schema}
+
+\subsection{codex}
+
+Config lives in \texttt{\~{}/.codex/config.toml}: $cxMain$ (\texttt{model}) and
+the sub-agent slot $cxSubagent$ (\texttt{[agents]}
+\texttt{agent\_default\_subagent\_model}). A spawned sub-agent that omits a
+model inherits $cxMain$; model-provider leaves it unset, so $inherit$ is both
+default and safe.
+
+\begin{schema}{CodexConfig}
+  cxMain : Slot \\
+  cxSubagent : Slot
+\end{schema}
+
+\begin{schema}{CodexOKCur}
+  CodexConfig \\
+  sel : ModelId
+\where
+  cxMain \in resolves~sel \\
+  cxSubagent \in resolves~sel
+\end{schema}
+
+\subsection{pi}
+
+Config lives in \texttt{\~{}/.pi/agent/settings.json} ($piMain$,
+\texttt{defaultModel}); sub-agents are Markdown files whose omitted frontmatter
+\texttt{model:} inherits the session model. $piSubagent$ models that slot;
+$inherit$ is the safe default.
+
+\begin{schema}{PiConfig}
+  piMain : Slot \\
+  piSubagent : Slot
+\end{schema}
+
+\begin{schema}{PiOKCur}
+  PiConfig \\
+  sel : ModelId
+\where
+  piMain \in resolves~sel \\
+  piSubagent \in resolves~sel
+\end{schema}
+
+\subsection{opencode}
+
+Config lives in \texttt{\~{}/.config/opencode/opencode.json}: $ocMain$
+(\texttt{model}), $ocSmall$ (\texttt{small\_model}), and per-agent slots
+$ocAgent$ (\texttt{agent.<name>.model}). The current tool pins $ocSmall$ to the
+selection (\texttt{small\_model = openai/<model>}, proven routable), so for
+opencode even the small slot resolves to the selection --- unlike Claude Code.
+An agent that omits \texttt{model} inherits the session model.
+
+\begin{schema}{OpencodeConfig}
+  ocMain : Slot \\
+  ocSmall : Slot \\
+  ocAgent : Slot
+\end{schema}
+
+\begin{schema}{OpencodeOKCur}
+  OpencodeConfig \\
+  sel : ModelId
+\where
+  ocMain \in resolves~sel \\
+  ocSmall \in resolves~sel \\
+  ocAgent \in resolves~sel
+\end{schema}
+
+\subsection{The composed fleet invariant}
+
+When routed, Claude Code is correct to \emph{family} fidelity on its side-slots
+and \emph{id} fidelity on main; codex, pi and opencode are correct to id
+fidelity. This is the file-level, sub-agent-inclusive restatement of
+$SystemOKCur$.
+
+\begin{schema}{Fleet}
+  sel : ModelId \\
+  route : Route \\
+  ClaudeCodeConfig \\
+  CodexConfig \\
+  PiConfig \\
+  OpencodeConfig
+\end{schema}
+
+\begin{schema}{FleetOKCur}
+  Fleet
+\where
+  route = bifrost \implies \\
+  \t1 ( ClaudeCodeOKCur \land CodexOKCur \land PiOKCur \land OpencodeOKCur )
+\end{schema}
+
+\section{What this spec does not claim}
+
+For honesty, the current-state limitations modelled or noted above are as
+follows. Only Bifrost is implemented; there is no gateway selection.
+Entitlement is not enforced: the catalog domain is the whole selectable set, so
+a catalogued-but-unentitled id (the Bedrock Anthropic-models gap) can be
+selected and routed --- the target spec closes this. \texttt{verify} proves
+only Claude Code's main Anthropic path; the other harnesses and side-requests
+are verified by the separate manual procedure in the test plan. Finally,
+\texttt{direct} leaves some opencode provider/model residue in place (a
+documented cleanup gap); $Direct$ here idealises that to an empty wire --- the
+one place this spec is slightly kinder than the code, called out rather than
+hidden.
+
+\section{Two real-world constraints: compatibility and credential terms}
+
+Two real-world facts bound correct operation; neither is enforced by the
+current tool, so both are documented gaps.
+
+\textbf{Compatibility (support, not permission).} Anthropic does \emph{not}
+support routing Claude Code to non-Claude models. This is a support and
+compatibility statement, not a terms violation: with a non-Anthropic selection
+on the Claude Code path, tool use, extended thinking, and prompt caching are
+unvalidated and degrade per model, so routing fidelity is necessary but not
+sufficient. Separately, two Claude Code defaults --- MCP tool search and
+fine-grained tool streaming --- silently turn off whenever Claude Code is routed
+through the gateway (the \texttt{bifrost} route), regardless of model; both are
+recoverable via environment variables. The current tool does not restore them.
+
+\textbf{Credential terms.} The licensing line runs along the credential, not the
+model: a Claude Pro/Max subscription is licensed for Anthropic's own clients
+(the Claude apps and Claude Code), so spending it on a third-party client is the
+violation --- for \emph{any} model, Claude included. In this model $subauth$ is
+the subscription-OAuth mode, legitimate only on the Claude Code path. The
+current tool does \emph{not} guard this: it passes $auth$ through
+($vk|subscription$) without checking that a subscription credential only backs
+Claude Code, so a misconfiguration could point a subscription at a non-Anthropic
+harness. The target spec closes this with an enforced precondition; here it is a
+known gap.
+
+\end{document}

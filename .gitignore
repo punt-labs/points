@@ -1,0 +1,190 @@
+# === Punt Labs canonical .gitignore ===
+# Source of truth: .bin/gitignore-canonical.template
+# Rollout:         .bin/gitignore-canonical-rollout.sh
+# Repo-specific additions belong BELOW the "# === Repo-specific ===" marker.
+# Everything above it is managed by the rollout script.
+
+# --- Secrets & local overrides ---
+.env
+.env.*
+.env*.local
+!.env.example
+.envrc.local
+.biff.local
+.claude/settings.local.json
+.claude/settings.local.*
+.claude/mcp.local.json
+.mcp.local.json
+*.local
+*.local.*
+.*.local
+.*.local.*
+
+# --- Punt Labs runtime state (never commit) ---
+.punt-labs/local/
+.punt-labs/**/local/**
+.punt-labs/**/*.local.*
+.punt-labs/quarry/captures/
+# Ethos vendored registry: sessions/ and mission lock files are per-run
+# runtime churn (0700 dirs / flocks), never committed. missions/ is NOT
+# blanket-ignored here -- vox's own .gitignore tracks durable mission
+# records (contract.yaml, results.yaml, reflections.yaml, log.jsonl)
+# under .punt-labs/ethos/missions/ by design; only its lock files are
+# runtime noise (the mission-wide .create.lock is already covered by the
+# global **/.create.lock below; missions/**/.lock catches a per-mission
+# lock at any nesting depth, not just one level down).
+#
+# The rollout script's dedup exempts .punt-labs/ethos/ specifically
+# (unlike vox/quarry/lux, this policy is genuinely per-repo, not
+# universal -- see gitignore-canonical-rollout.sh) so a repo's own
+# broader or narrower .punt-labs/ethos/* rule survives rollout untouched.
+# This entry is only the minimal shared baseline for repos with no
+# custom policy of their own.
+.punt-labs/ethos/sessions/
+.punt-labs/ethos/missions/**/.lock
+.punt-labs/vox/ephemeral/
+.punt-labs/vox/vox.local.md
+.punt-labs/lux.md
+
+# --- Claude Code runtime state ---
+.claude/*
+!.claude/settings.json
+!.claude/commands/
+!.claude/hooks/
+!.claude/agents/
+!.claude/rules/
+!.claude/skills/
+.claude/scheduled_tasks*
+.claude/worktrees/
+.claude/projects/
+.claude/beadle.poll.*
+*/**/.claude/
+
+# --- Lock files (except uv.lock) ---
+.*.lock
+*.punt-import.lock
+.CLAUDE.md.lock
+.CLAUDE.md.punt-import.lock
+**/.create.lock
+
+# --- Beads runtime state ---
+.beads/bd.sock*
+.beads/beads.db*
+.beads/daemon-*
+.beads/daemon.log
+.beads/daemon-error
+.beads/.local_version
+
+# --- Scratch / temp ---
+# .tmp/ is the repo-local TMPDIR (set via .envrc). We keep the directory but
+# ignore its contents. Do NOT add a bare `*.tmp` pattern here — it would match
+# the `.tmp` directory itself, preventing git from descending, and then the
+# `!.tmp/.gitkeep` negation could not re-include the tracked marker.
+.tmp/*
+!.tmp/.gitkeep
+CLAUDE.md.tmp
+
+# --- Worktrees ---
+.worktrees/
+
+# --- OS junk ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+
+# --- Editors / IDEs ---
+.idea/
+.vscode/
+.cursor/
+.codex/
+.accio/
+.claude-flow/
+*.swp
+*.swo
+*~
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+dist/
+points
+build/
+*.egg
+*.egg-info/
+.eggs/
+.mypy_cache/
+.pyright/
+.pytest_cache/
+.pytest-work/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+uv.toml
+
+# --- Node / web ---
+node_modules/
+.astro/
+.vercel/
+
+# --- Go ---
+coverage.out
+*.test
+
+# --- Swift / Xcode ---
+# (Do NOT ignore *.xcodeproj / *.xcworkspace — those directories are tracked;
+# only ignore user-specific state INSIDE them.)
+xcuserdata/
+DerivedData/
+CoverageDerived/
+*.xccheckout
+*.xcresult
+*.xcscmblueprint
+*.hmap
+*.dSYM
+*.dSYM.zip
+*.ipa
+.swiftpm/
+Package.pin
+Package.resolved
+Carthage/Build/
+Carthage/Checkout
+Pods/
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+iOSInjectionProject/
+playground.xcworkspace
+timeline.xctimeline
+
+# --- LaTeX build artifacts ---
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+
+# === Repo-specific ===
+# Add repo-specific entries below this line. The rollout script preserves
+# everything from here down; everything above is regenerated from the canonical
+# template.
+
+# ethos runtime (never track) — DES-058 live zone + mission locks
+.punt-labs/ethos/missions/**/*.lock
+.punt-labs/ethos/missions/
+.punt-labs/ethos/missions.jsonl
+.punt-labs/ethos/missions.jsonl.lock

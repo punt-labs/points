@@ -1,0 +1,42 @@
+name: gstack
+members:
+  - identity: gstack-ceo
+    role: ceo
+  - identity: gstack-coo
+    role: coo
+  - identity: gstack-architect
+    role: architect
+  - identity: gstack-implementer
+    role: implementer
+  - identity: gstack-reviewer
+    role: reviewer
+  - identity: gstack-qa
+    role: qa-engineer
+  - identity: gstack-security
+    role: security-reviewer
+  - identity: gstack-product
+    role: product-lead
+collaborations:
+  - from: coo
+    to: ceo
+    type: reports_to
+  - from: architect
+    to: coo
+    type: reports_to
+  - from: implementer
+    to: coo
+    type: reports_to
+  - from: reviewer
+    to: coo
+    type: reports_to
+  - from: qa-engineer
+    to: coo
+    type: reports_to
+  - from: security-reviewer
+    to: coo
+    type: reports_to
+  # product-lead reports_to coo (was collaborates_with architect): deliberate
+  # per the operator ruling that every specialist reports to the COO.
+  - from: product-lead
+    to: coo
+    type: reports_to

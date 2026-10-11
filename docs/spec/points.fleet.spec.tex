@@ -1,0 +1,530 @@
+\documentclass{article}
+\usepackage{fuzz}
+\makeatletter
+\newenvironment{theorem}[1]{\medskip\noindent\textbf{Theorem (#1).}\@nameuse{zed}}{\@nameuse{endzed}}
+\makeatother
+
+\begin{document}
+
+\title{A Formal Specification of \texttt{model-provider-fleet} (the OpenAI-protocol harnesses: codex, pi, opencode)}
+\author{Punt Labs}
+\maketitle
+
+\section{Purpose and scope}
+
+This is one of a two-tool split. \texttt{model-provider-fleet} configures the
+three AI coding harnesses that speak the OpenAI protocol --- codex, pi, opencode
+--- from one operator selection. Claude Code is handled by the separate
+\texttt{model-provider-claude} tool and is deliberately absent here; everything
+that made the combined tool hard (canonicalization, the override map, tier-alias
+fan-out, the subscription-credential path) belonged to Claude Code and is gone
+from this one.
+
+The resulting guarantee is uniform and strong: when routed through a gateway,
+\emph{every} request every harness issues --- main loop and every side-request
+--- puts the operator's selection on the wire, verbatim, reaching the provider
+the selection names. There is no per-request divergence to reason about: no
+harness here canonicalizes, so the wire id is always the selection itself.
+Preconditions are explicit so TTF partition analysis can derive test cases from
+each operation's input domain.
+
+\section{Given sets and enumerations}
+
+A model id is an opaque catalog token (e.g. \texttt{openrouter/openai/gpt-6}). A
+provider is the upstream a gateway routes a model to.
+
+\begin{zed}
+  [ModelId, Provider]
+\end{zed}
+
+The three OpenAI-protocol harnesses.
+
+\begin{zed}
+  Harness ::= codex | pi | opencode
+\end{zed}
+
+Request kinds. \emph{main} is the primary loop; \emph{side} is a background /
+subagent / small-model request (codex and pi sub-agents, opencode's small/title
+model). Side-requests are first-class: they are the paths that fail silently
+when only the main model is set.
+
+\begin{zed}
+  ReqKind ::= main | side
+\end{zed}
+
+The gateways in use; the specification is written over an abstract gateway and
+these are the concrete instances. $direct$ is modelled separately (the absence
+of a gateway), not as a member.
+
+\begin{zed}
+  Gateway ::= bifrost | envoy | agentgateway
+\end{zed}
+
+Booleans. fuzz's toolkit has no built-in boolean; $yes$/$no$ are its values.
+
+\begin{zed}
+  Bool ::= yes | no
+\end{zed}
+
+\section{Harness properties}
+
+Every harness here speaks the OpenAI protocol and issues a main request and a
+side request. (A harness with no distinct side model still has the slot; it
+simply inherits the main model, which on the wire is the selection.)
+
+\begin{axdef}
+  issues : Harness \fun \power ReqKind
+\where
+  issues = \{ codex \mapsto \{ main, side \}, \\
+  \t1         pi \mapsto \{ main, side \}, \\
+  \t1         opencode \mapsto \{ main, side \} \}
+\end{axdef}
+
+Authentication here is the per-host gateway virtual key only. There is no
+subscription-credential mode: a Claude Pro/Max subscription is licensed for
+Anthropic's own clients, so it has no legitimate home on any harness in this
+tool. Modelling the auth mode as a one-value type records that simplification.
+
+\begin{zed}
+  AuthMode ::= vkauth
+\end{zed}
+
+\section{The gateway contract}
+
+For each gateway: $gwCatalog$ gives, per model id, the provider it routes to;
+$gwServes$ is the subset actually entitled for this account; $gwOpenai$ records
+whether the gateway exposes the OpenAI protocol these harnesses speak. Every
+gateway entitles at least one id.
+
+\begin{axdef}
+  gwCatalog : Gateway \fun (ModelId \pfun Provider) \\
+  gwServes : Gateway \fun \power ModelId \\
+  gwOpenai : Gateway \fun Bool
+\where
+  \forall g : Gateway @ \\
+  \t1 gwServes~g \subseteq \dom (gwCatalog~g) \land \\
+  \t1 gwServes~g \neq \emptyset
+\end{axdef}
+
+The ids the operator may select on a gateway are the ones it is entitled to
+serve --- the entitled set, not merely the catalogued set, so a
+catalogued-but-unentitled id is refused at selection.
+
+\begin{axdef}
+  validOn : Gateway \fun \power ModelId
+\where
+  \forall g : Gateway @ validOn~g = gwServes~g
+\end{axdef}
+
+A model id's provider on a gateway, for the ids that gateway catalogs.
+
+\begin{axdef}
+  provOn : Gateway \cross ModelId \pfun Provider
+\where
+  \forall g : Gateway; m : ModelId @ \\
+  \t1 ( ( g, m ) \in \dom provOn \iff m \in \dom (gwCatalog~g) ) \land \\
+  \t1 ( m \in \dom (gwCatalog~g) \implies provOn~(g, m) = gwCatalog~g~m )
+\end{axdef}
+
+A gateway can carry these harnesses iff it exposes the OpenAI protocol.
+
+\begin{axdef}
+  usableGateways : \power Gateway
+\where
+  usableGateways = \{ g : Gateway | gwOpenai~g = yes \}
+\end{axdef}
+
+\section{Configuration state}
+
+$sel$ is the selection; $selGw$ the gateway it was selected on; $routed$ whether
+a gateway is active or the tools are on vendor defaults (direct); $activeGw$ the
+gateway in force; $wire$ gives, per harness, per issued request kind, the id
+that will travel. There is no override map and no auth variation: the OpenAI
+harnesses route the id verbatim, so nothing needs bridging. $forced$ records a
+\texttt{--force} selection so an off-entitlement id is representable.
+
+\begin{schema}{Config}
+  sel : ModelId \\
+  selGw : Gateway \\
+  routed : Bool \\
+  activeGw : Gateway \\
+  forced : Bool \\
+  wire : Harness \pfun (ReqKind \pfun ModelId)
+\where
+  sel \in \dom (gwCatalog~selGw) \\
+  forced = no \implies sel \in validOn~selGw
+\end{schema}
+
+\section{Initial state}
+
+The never-configured state: direct, no managed wire.
+
+\begin{schema}{Init}
+  Config'
+\where
+  routed' = no \\
+  forced' = no \\
+  wire' = \{ h : \{ codex, pi, opencode \} @ h \mapsto \emptyset \}
+\end{schema}
+
+\section{Well-formedness}
+
+$wire$ is defined for exactly the three harnesses and, for each, exactly the
+request kinds it issues.
+
+\begin{schema}{WellFormed}
+  Config
+\where
+  \dom wire = \{ codex, pi, opencode \} \\
+  ( \forall h : \dom wire @ \dom (wire~h) = issues~h )
+\end{schema}
+
+\section{The core guarantee}
+
+\textbf{Routing correctness.} When routed, every request every harness issues
+carries the selection verbatim --- no canonicalized stand-in, no unset-fallback
+built-in. There is no conditional: main and side alike are the selection,
+because no harness here rewrites the id.
+
+\begin{schema}{RoutingCorrect}
+  WellFormed
+\where
+  routed = yes \implies \\
+  \t1 ( \forall h : \dom wire @ \forall k : \dom (wire~h) @ \\
+  \t2   (wire~h)~k = sel )
+\end{schema}
+
+\textbf{Provider fidelity.} The wire id equals the selection, so the provider
+reached equals the selection's provider on the active gateway. Because $validOn$
+is the entitled set, that provider is one the account may actually reach ---
+excluding the ``catalogued but \texttt{AccessDenied}'' failure by construction.
+
+\begin{schema}{ProviderFidelity}
+  RoutingCorrect
+\where
+  routed = yes \implies \\
+  \t1 ( \forall h : \dom wire @ \forall k : \dom (wire~h) @ \\
+  \t2   provOn~(activeGw, (wire~h)~k) = provOn~(activeGw, sel) )
+\end{schema}
+
+\textbf{The forbidden failure.} A side-request falling back to a built-in whose
+provider is not the selection's. Named as the predicate the configuration makes
+unreachable while routed.
+
+\begin{schema}{SilentMisroute}
+  WellFormed
+\where
+  routed = yes \\
+  ( \exists h : \dom wire @ \exists k : \dom (wire~h) @ \\
+  \t1 provOn~(activeGw, (wire~h)~k) \neq provOn~(activeGw, sel) )
+\end{schema}
+
+\section{Shared effect: applying a gateway configuration}
+
+Route through gateway $g$ with selection $m$, rebuilding $wire$ so every issued
+request kind of every harness maps to $m$.
+
+\begin{schema}{ApplyGateway}
+  \Delta Config \\
+  g? : Gateway \\
+  m? : ModelId \\
+  fwd? : Bool
+\where
+  sel' = m? \\
+  selGw' = g? \\
+  activeGw' = g? \\
+  routed' = yes \\
+  forced' = fwd? \\
+  \dom wire' = \{ codex, pi, opencode \} \\
+  ( \forall h : \dom wire' @ wire'~h = \{ k : issues~h @ k \mapsto m? \} )
+\end{schema}
+
+\section{Operation: \texttt{use}}
+
+Selecting a model. Input is a gateway, a model id, and a $force$ flag.
+Partitions: (a) valid --- id entitled and gateway usable; (b) forced ---
+$force? = yes$ records an off-entitlement id that is \emph{still catalogued}
+(force bypasses the entitlement check, not the catalog: an id the gateway cannot
+route at all is never selectable, which keeps every reachable selection's
+provider well-defined), with the gateway usable; (c) refused-unknown --- id not
+catalogued and not forced; (d) refused-gateway --- gateway does not expose the
+OpenAI protocol.
+
+\begin{schema}{UseOk}
+  ApplyGateway \\
+  force? : Bool
+\where
+  m? \in validOn~g? \\
+  g? \in usableGateways \\
+  fwd? = no \\
+  force? = no
+\end{schema}
+
+\begin{schema}{UseForced}
+  ApplyGateway \\
+  force? : Bool
+\where
+  force? = yes \\
+  fwd? = yes \\
+  m? \in \dom (gwCatalog~g?) \\
+  m? \notin gwServes~g? \\
+  g? \in usableGateways
+\end{schema}
+
+\begin{schema}{UseRefusedUnknown}
+  \Xi Config \\
+  g? : Gateway \\
+  m? : ModelId \\
+  force? : Bool \\
+  err! : \num
+\where
+  m? \notin \dom (gwCatalog~g?) \\
+  force? = no \\
+  err! = 1
+\end{schema}
+
+\begin{schema}{UseRefusedGateway}
+  \Xi Config \\
+  g? : Gateway \\
+  m? : ModelId \\
+  force? : Bool \\
+  err! : \num
+\where
+  g? \notin usableGateways \\
+  err! = 2
+\end{schema}
+
+\begin{zed}
+  Use \defs (UseOk \lor UseForced) \lor \\
+  \t1 (UseRefusedUnknown \lor UseRefusedGateway)
+\end{zed}
+
+\section{Operations: gateway-on, \texttt{direct}, \texttt{toggle}}
+
+$GatewayOn$ re-applies the current selection on its gateway. $Direct$ withdraws
+the managed wire, retaining $sel$/$selGw$ for a later re-apply. \texttt{toggle}
+flips the route.
+
+\begin{schema}{GatewayOn}
+  \Delta Config
+\where
+  selGw \in usableGateways \\
+  sel' = sel \\
+  selGw' = selGw \\
+  activeGw' = selGw \\
+  routed' = yes \\
+  forced' = forced \\
+  \dom wire' = \{ codex, pi, opencode \} \\
+  ( \forall h : \dom wire' @ wire'~h = \{ k : issues~h @ k \mapsto sel \} )
+\end{schema}
+
+\begin{schema}{Direct}
+  \Delta Config
+\where
+  routed' = no \\
+  sel' = sel \\
+  selGw' = selGw \\
+  activeGw' = activeGw \\
+  forced' = forced \\
+  wire' = \{ h : \{ codex, pi, opencode \} @ h \mapsto \emptyset \}
+\end{schema}
+
+\begin{schema}{Toggle}
+  \Delta Config
+\where
+  sel' = sel \\
+  selGw' = selGw \\
+  forced' = forced \\
+  ( routed = no \implies \\
+  \t1 ( routed' = yes \land activeGw' = selGw \land \\
+  \t2   selGw \in usableGateways \land \\
+  \t2   \dom wire' = \{ codex, pi, opencode \} \land \\
+  \t2   ( \forall h : \dom wire' @ wire'~h = \{ k : issues~h @ k \mapsto sel \} ) ) ) \\
+  ( routed = yes \implies \\
+  \t1 ( routed' = no \land activeGw' = activeGw \land \\
+  \t2   wire' = \{ h : \{ codex, pi, opencode \} @ h \mapsto \emptyset \} ) )
+\end{schema}
+
+\section{Read-only operations: \texttt{status}, \texttt{list}, \texttt{verify}}
+
+$Status$ reports the selection, gateway and route. $List$ reports the entitled
+set. $Verify$ is the whole-fleet probe: $ok! = 1$ exactly when, routed and
+well-formed (so the side-request slots exist), every harness's every request
+kind reaches the selection's provider.
+
+\begin{schema}{Status}
+  \Xi Config \\
+  repSel! : ModelId \\
+  repGw! : Gateway \\
+  repRouted! : Bool
+\where
+  repSel! = sel \\
+  repGw! = activeGw \\
+  repRouted! = routed
+\end{schema}
+
+\begin{schema}{List}
+  \Xi Config \\
+  cat! : \power ModelId
+\where
+  cat! = validOn~activeGw
+\end{schema}
+
+\begin{schema}{VerifyPass}
+  \Xi Config \\
+  WellFormed \\
+  ok! : \num
+\where
+  routed = yes \\
+  ( \forall h : \dom wire @ \forall k : \dom (wire~h) @ \\
+  \t1 provOn~(activeGw, (wire~h)~k) = provOn~(activeGw, sel) ) \\
+  ok! = 1
+\end{schema}
+
+\begin{schema}{VerifyFail}
+  \Xi Config \\
+  ok! : \num
+\where
+  ( routed = no \lor \\
+  \t1 ( \lnot ( \dom wire = \{ codex, pi, opencode \} \land \\
+  \t2     ( \forall h : \dom wire @ \dom (wire~h) = issues~h ) ) ) \lor \\
+  \t1 ( \exists h : \dom wire @ \exists k : \dom (wire~h) @ \\
+  \t2   provOn~(activeGw, (wire~h)~k) \neq provOn~(activeGw, sel) ) ) \\
+  ok! = 0
+\end{schema}
+
+\begin{zed}
+  Verify \defs VerifyPass \lor VerifyFail
+\end{zed}
+
+\section{The system invariant}
+
+Whenever routed, the configuration is well-formed and every request carries the
+selection and reaches its provider. Stated as a machine-checkable theorem so the
+checker confirms it, not prose.
+
+\begin{schema}{SystemOK}
+  WellFormed
+\where
+  routed = yes \implies \\
+  \t1 ( ( \forall h : \dom wire @ \forall k : \dom (wire~h) @ \\
+  \t2     (wire~h)~k = sel ) \land \\
+  \t1   ( \forall h : \dom wire @ \forall k : \dom (wire~h) @ \\
+  \t2     provOn~(activeGw, (wire~h)~k) = provOn~(activeGw, sel) ) )
+\end{schema}
+
+\begin{theorem}{ApplyGivesSystemOK}
+  \forall Config'; g? : Gateway; m? : ModelId; fwd? : Bool @ \\
+  \t1 ( \exists Config @ ApplyGateway ) \implies \\
+  \t2 ( \theta Config' \in \{ SystemOK @ \theta Config \} )
+\end{theorem}
+
+\section{Per-harness on-disk configuration}
+
+A model slot holds a concrete id or $inherit$ (unset --- the harness falls back
+to its parent / main model, which on the wire is the selection). A slot
+\emph{resolves to the selection} when it is $inherit$ or $fixed~sel$. With no
+canonicalization and no tier aliasing, this single predicate covers every slot
+of every harness here.
+
+\begin{zed}
+  Slot ::= inherit | fixed \ldata ModelId \rdata
+\end{zed}
+
+\begin{axdef}
+  resolves : ModelId \fun \power Slot
+\where
+  \forall m : ModelId @ \\
+  \t1 resolves~m = \{ inherit \} \cup \{ s : Slot | s = fixed~m \}
+\end{axdef}
+
+\subsection{codex}
+
+\texttt{\~{}/.codex/config.toml}: $cxMain$ (\texttt{model}) and the sub-agent
+slot $cxSubagent$ (\texttt{[agents] agent\_default\_subagent\_model}). An omitted
+sub-agent model inherits $cxMain$, so $inherit$ is the safe default.
+
+\begin{schema}{CodexConfig}
+  cxMain : Slot \\
+  cxSubagent : Slot
+\end{schema}
+
+\begin{schema}{CodexOK}
+  CodexConfig \\
+  sel : ModelId
+\where
+  cxMain \in resolves~sel \\
+  cxSubagent \in resolves~sel
+\end{schema}
+
+\subsection{pi}
+
+\texttt{\~{}/.pi/agent/settings.json} ($piMain$, \texttt{defaultModel}); a
+sub-agent Markdown file's omitted frontmatter \texttt{model:} inherits the
+session model.
+
+\begin{schema}{PiConfig}
+  piMain : Slot \\
+  piSubagent : Slot
+\end{schema}
+
+\begin{schema}{PiOK}
+  PiConfig \\
+  sel : ModelId
+\where
+  piMain \in resolves~sel \\
+  piSubagent \in resolves~sel
+\end{schema}
+
+\subsection{opencode}
+
+\texttt{\~{}/.config/opencode/opencode.json}: $ocMain$ (\texttt{model}),
+$ocSmall$ (\texttt{small\_model}, pinned to the selection), and per-agent slots
+$ocAgent$ (\texttt{agent.<name>.model}, inherit-safe).
+
+\begin{schema}{OpencodeConfig}
+  ocMain : Slot \\
+  ocSmall : Slot \\
+  ocAgent : Slot
+\end{schema}
+
+\begin{schema}{OpencodeOK}
+  OpencodeConfig \\
+  sel : ModelId
+\where
+  ocMain \in resolves~sel \\
+  ocSmall \in resolves~sel \\
+  ocAgent \in resolves~sel
+\end{schema}
+
+\subsection{The composed fleet invariant}
+
+When routed, every harness --- main and every side slot --- resolves to the
+selection. The file-level restatement of $SystemOK$.
+
+\begin{schema}{Fleet}
+  sel : ModelId \\
+  routed : Bool \\
+  CodexConfig \\
+  PiConfig \\
+  OpencodeConfig
+\end{schema}
+
+\begin{schema}{FleetOK}
+  Fleet
+\where
+  routed = yes \implies ( CodexOK \land PiOK \land OpencodeOK )
+\end{schema}
+
+\section{Why this tool is simple}
+
+Everything that made the combined tool fragile lived on the Claude Code path and
+is absent here: no canonicalization ($wireOf$ would be identity, so it is not
+even defined), no override map, no tier-alias fan-out, no $[1m]$ marker, no
+subscription-credential mode, one protocol. What remains is: write the verbatim
+selection into three config files whose main and side slots all take the same
+id. The invariant is a single equality ($(wire~h)~k = sel$ everywhere), which is
+why the whole tool model-checks to one uniform guarantee with no per-request
+case analysis.
+
+\end{document}

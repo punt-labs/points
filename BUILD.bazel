@@ -1,0 +1,10 @@
+# Root BUILD file — gazelle entry point.
+#
+# STATUS: UNVERIFIED (see MODULE.bazel). Run `bazel run //:gazelle` after
+# installing bazelisk to (re)generate the per-package BUILD.bazel files from the
+# Go sources; gazelle will keep them in sync with go.mod.
+
+load("@gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix github.com/punt-labs/points
+gazelle(name = "gazelle")
