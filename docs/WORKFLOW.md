@@ -244,6 +244,11 @@ an evaluator's confidence are not evidence by themselves. Missing evidence is
 Ethos owns the durable contract, result, reflection, and audit log. The leader
 does not copy them into a second checks file.
 
+OpenCode, Beads, Ethos, Circuit, Git, and GitHub retain their own identifiers and
+state authority. Correlate them through OpenCode session metadata and explicit
+contract/evidence fields rather than inventing one shared ID. See
+`docs/opencode/10-sessions-persistence.md` for the mapping and PR head-SHA rule.
+
 ### Worker and Evaluator Map
 
 | Node type | Worker | Evaluator |
