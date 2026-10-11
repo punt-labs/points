@@ -183,6 +183,13 @@ closed findings, not an approval-count ceremony. This clean exact-head state is
 the effective approval to merge even though GitHub records no required formal
 approval.
 
+Today, GitHub mechanically enforces required CI, Bugbot status, pull requests,
+and thread resolution. The leader enforces exact-head Qodo and Copilot review
+completion before merge because Qodo publishes a comment-only review rather
+than a check context. `points-6ja` tracks a fail-closed `review-gate` check once
+a scoped Qodo service credential is available; never put an unscoped personal
+Qodo key in Actions.
+
 ## Mission Loop: Bounded Ethos Nodes
 
 An Ethos mission is one graph node: one declared input set, one output, one
