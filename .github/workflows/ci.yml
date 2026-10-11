@@ -48,7 +48,7 @@ jobs:
       - name: race tests
         run: go test -race -count=1 ./...
       - name: static build and smoke
-        run: make doctor
+        run: make build && ./points --help >/dev/null
 
   docs:
     name: docs

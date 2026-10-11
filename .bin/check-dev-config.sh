@@ -70,6 +70,9 @@ test "$actual_mcp" = "$expected_mcp" ||
 
 grep -q 'workflows: \["CI", "Security"\]' .github/workflows/biff-notify.yml ||
   fail 'Biff notifications must watch both CI and Security workflows'
+if grep -RqsE 'run: (make )?doctor($| )' .github/workflows; then
+  fail 'public CI must not run workstation-only make doctor'
+fi
 
 expected_skills='agent-mail ethos-mission punt-dev-doctor quarry-capture quarry-recall'
 actual_skills=$(find .opencode/skills -mindepth 2 -maxdepth 2 -name SKILL.md \
