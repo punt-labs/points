@@ -58,3 +58,12 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: markdownlint
         run: npx --yes markdownlint-cli2 "**/*.md" "#node_modules" "#.punt-labs"
+
+  dev-config:
+    name: dev-config
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: OpenCode and agent policy
+        run: make check-dev
