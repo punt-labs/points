@@ -163,18 +163,21 @@ push → wait for CI + Qodo + Bugbot + Copilot
 
 - **Qodo:** read authoritative structured state with `qodo read
   pr-review-session findings --pr-url <url> --json`. Act only on a completed
-  review whose commit SHA equals the current PR head. Resolve valid findings in
-  code; record dismissal only with explicit operator agreement.
+review whose commit SHA equals the current PR head. Resolve valid findings in
+code; record dismissal only with explicit operator agreement.
 - **Cursor Bugbot:** require its external check to pass and address any linked
   findings before the next push.
 - **GitHub Copilot:** reviews drafts and every push through the repository
-  ruleset. Resolve each material conversation after fixing it or documenting why
-  no change is warranted.
+  ruleset. Require a completed review whose commit equals the current PR head,
+  then resolve each material conversation after fixing it or documenting why no
+  change is warranted.
 
 Every push invalidates prior review freshness. Do not merge because an earlier
 round was clean. The current head must have all required CI checks green, a
 completed clean Qodo review, a passing Bugbot check, and no unresolved Copilot
-or human review threads. The ruleset requires pull requests and thread
+or human review threads. Copilot must have completed review of that same head;
+the absence of threads while its review is pending is not a pass. The ruleset
+requires pull requests and thread
 resolution but zero approving reviews; correctness comes from evidence and
 closed findings, not an approval-count ceremony. This clean exact-head state is
 the effective approval to merge even though GitHub records no required formal
