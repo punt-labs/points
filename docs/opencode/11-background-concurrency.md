@@ -2,17 +2,19 @@
 
 ## Execution model
 
-OpenCode serializes one execution per session and runs different sessions
-concurrently. A per-session run coordinator owns a single draining fiber from
-the first wake until the session would stay idle; a mid-drain "doorbell"
-coalesces new work into the same busy period, and the widest pending scope wins
-(`input` subsumes `steer`). Parallelism therefore comes from running multiple
-sessions — notably subagent children — not from overlapping turns inside one
-session.
+OpenCode serializes the model turns of a single session and runs different
+sessions concurrently. A per-session run coordinator owns a single draining
+fiber from the first wake until the session would stay idle; a mid-drain
+"doorbell" coalesces new work into the same busy period, and the widest pending
+scope wins (`input` subsumes `steer`). Model-turn parallelism therefore comes
+from running multiple sessions — notably subagent children — not from
+overlapping turns inside one session.
 
-Long-running tool work (subagents and shells) runs as **jobs** in a
-process-local registry keyed by the child session ID or the shell ID. Jobs are
-forked in parallel and outlive the plugin call that launched them.
+This serialization applies to model turns, not to long-running tool work.
+Subagents and shells run as **jobs** in a process-local registry keyed by the
+child session ID or the shell ID. Jobs are forked in parallel and outlive the
+plugin call that launched them, so a background job keeps running while its
+owning session returns to the model and starts its next turn.
 
 ## Subagents
 
