@@ -15,16 +15,22 @@ model. If the text exceeds the limits, OpenCode shows a bounded slice, writes th
 - The general tool path keeps the **head** (lines 1..N). The shell tool keeps the
   **tail** (the last N lines/bytes), since a command's outcome is usually at the
   end.
-- Nothing is lost on truncation: the full output is retrievable from the saved
-  file (`metadata.outputPath`), and shell output is paged from its own
-  `sh_<id>.out` capture file by `cursor`/`limit`. A consumer has more to read
-  while `cursor < size`.
-- Saved tool-output files have a **7-day retention** and are swept hourly.
+- On truncation the full output is still available, but the two paths have
+  different lifetimes:
+  - **General tool output** is written to `<global.data>/tool-output/tool_<id>`
+    (surfaced as `metadata.outputPath`), with a **7-day retention** swept hourly.
+  - **Shell output** is paged from its own `sh_<id>.out` capture file by
+    `cursor`/`limit`; a consumer has more to read while `cursor < size`. This is
+    **not** kept for seven days: OpenCode retains only the 25 most recent exited
+    shells and unlinks older capture files, and shell IDs do not survive a server
+    restart. Once a shell ages out or the server restarts, its capture is gone.
 - File-type content items (attachments) are never truncated; only text is.
 
 The practical rule for workers: read the current output if it lets you do useful
 work now, but do not loop re-reading a file waiting for more — page it
-deliberately, or persist what must outlast the window.
+deliberately, or persist what must outlast the window. For shell evidence in
+particular, capture what you need promptly (it can age out after 25 exited shells
+or disappear on restart) rather than deferring it.
 
 ## Attachments and media
 
@@ -32,7 +38,10 @@ Tool results carry attachments as `file` content items with a MIME type.
 
 - **Images** are normalized and resized to a size limit. An image that cannot be
   resized under the limit, or cannot be decoded, is dropped and replaced with a
-  note such as `[N images omitted: …]` rather than sent oversized.
+  note such as `[N images omitted: …]` rather than sent oversized. One exception:
+  if the image resizer itself is unavailable (`Image.ResizerUnavailableError`),
+  the original image item passes through unchanged, so size enforcement does not
+  apply in that case.
 - **PDFs and other media** pass through as file items; compaction estimates them
   for sizing only (image ≈ 1,500 tokens, PDF ≈ 2,000) and does not keep their
   bytes in a summary.
@@ -62,8 +71,11 @@ Controls that do apply (area 2):
 - Editing `.env`, `.env.*`, `.envrc`, `.envrc.local` is denied; reading `.env`
   patterns keeps OpenCode's built-in ask rules.
 - Specialist prompts must not request environment dumps.
-- `make check` / `.bin/check-dev-config.sh` include secret-pattern scans over
-  tracked files.
+- `make check-dev` (not `make check`) runs `.bin/check-dev-config.sh`, which
+  includes a secret-pattern scan. That scan covers a selected list of
+  configuration and documentation paths, not every tracked file, so it is a
+  backstop against committed secrets in those files — not a guarantee that no
+  secret is committed anywhere.
 
 What these controls do **not** cover: a secret that a legitimately-allowed
 command emits into stdout/stderr. That output reaches the model and the
