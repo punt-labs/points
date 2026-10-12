@@ -37,6 +37,8 @@ All notable changes to `points` are documented here. The format follows
   and current Ethos/Biff hook and notification validation.
 - Public GitHub repository with protected `main`, robust required CI, and an
   iterative Qodo, Cursor Bugbot, and Copilot review loop.
+- OpenCode session lifecycle and cross-system ID ownership for Beads, Ethos,
+  Circuit, Git, and GitHub correlation.
 - `docs/SETUP.md` — post-clone tool-enablement steps.
 - Makefile quality gate; Bazel scaffolding (unverified pending bazelisk).
 - Beads configuration (`issue_prefix: points`), canonical `.gitignore`,
