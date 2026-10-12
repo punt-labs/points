@@ -21,20 +21,20 @@ model. If the text exceeds the limits, OpenCode shows a bounded slice, writes th
     and surfaced as `metadata.outputPath`.
   - **Shell output** is captured in `sh_<id>.out` and paged by `cursor`/`limit`;
     a consumer has more to read while `cursor < size`.
-- Two caveats are specific to shell captures. The paging API only tracks live
-  shells and the 25 most recent exited ones, so after a server restart — or once
-  more than 25 shells have exited — a shell's ID is no longer pageable even
-  though its capture file still exists on disk until the 7-day sweep removes it.
-  The 25-shell eviction also unlinks a capture early. So the file is usually
-  recoverable by path after a restart, but the convenient `cursor`/`limit` paging
-  may not be.
+- Shell captures have two eviction paths that behave differently:
+  - **25-shell eviction** (more than 25 shells have exited in the running
+    process): the oldest shell is removed from the map and its capture file is
+    **unlinked immediately**. Neither paging nor path recovery remains.
+  - **Server restart**: exited shells are no longer pageable (their IDs leave the
+    map), but their orphaned capture files are **left on disk** and remain
+    recoverable by path until the hourly 7-day sweep removes them.
 - File-type content items (attachments) are never truncated; only text is.
 
 The practical rule for workers: read the current output if it lets you do useful
 work now, but do not loop re-reading a file waiting for more — page it
 deliberately, or persist what must outlast the window. For shell evidence you
-expect to reuse, record the capture file path (and read it promptly, since the
-25-shell eviction can unlink it before the 7-day sweep).
+expect to reuse, read it promptly: once more than 25 shells have exited, the
+oldest capture is unlinked and cannot be recovered at all.
 
 ## Attachments and media
 
