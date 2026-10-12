@@ -15,22 +15,26 @@ model. If the text exceeds the limits, OpenCode shows a bounded slice, writes th
 - The general tool path keeps the **head** (lines 1..N). The shell tool keeps the
   **tail** (the last N lines/bytes), since a command's outcome is usually at the
   end.
-- On truncation the full output is still available, but the two paths have
-  different lifetimes:
+- On truncation the full output is still available on disk. Both paths use a
+  **7-day retention** swept hourly:
   - **General tool output** is written to `<global.data>/tool-output/tool_<id>`
-    (surfaced as `metadata.outputPath`), with a **7-day retention** swept hourly.
-  - **Shell output** is paged from its own `sh_<id>.out` capture file by
-    `cursor`/`limit`; a consumer has more to read while `cursor < size`. This is
-    **not** kept for seven days: OpenCode retains only the 25 most recent exited
-    shells and unlinks older capture files, and shell IDs do not survive a server
-    restart. Once a shell ages out or the server restarts, its capture is gone.
+    and surfaced as `metadata.outputPath`.
+  - **Shell output** is captured in `sh_<id>.out` and paged by `cursor`/`limit`;
+    a consumer has more to read while `cursor < size`.
+- Two caveats are specific to shell captures. The paging API only tracks live
+  shells and the 25 most recent exited ones, so after a server restart — or once
+  more than 25 shells have exited — a shell's ID is no longer pageable even
+  though its capture file still exists on disk until the 7-day sweep removes it.
+  The 25-shell eviction also unlinks a capture early. So the file is usually
+  recoverable by path after a restart, but the convenient `cursor`/`limit` paging
+  may not be.
 - File-type content items (attachments) are never truncated; only text is.
 
 The practical rule for workers: read the current output if it lets you do useful
 work now, but do not loop re-reading a file waiting for more — page it
-deliberately, or persist what must outlast the window. For shell evidence in
-particular, capture what you need promptly (it can age out after 25 exited shells
-or disappear on restart) rather than deferring it.
+deliberately, or persist what must outlast the window. For shell evidence you
+expect to reuse, record the capture file path (and read it promptly, since the
+25-shell eviction can unlink it before the 7-day sweep).
 
 ## Attachments and media
 
