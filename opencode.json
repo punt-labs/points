@@ -45,6 +45,10 @@
     }
   },
   "mcp": {
+    "timeout": {
+      "startup": 120000,
+      "catalog": 60000
+    },
     "servers": {
       "ethos": {
         "type": "local",
