@@ -42,6 +42,9 @@ All notable changes to `points` are documented here. The format follows
 - OpenCode background work and concurrency: subagent/shell jobs, depth cap,
   steer/queue, completion notifications, cancellation, restart recovery, and
   write-set/worktree isolation.
+- OpenCode worktrees and references: git worktree strategy, reference sources,
+  VCS detection, external-directory boundary, shared Beads/Ethos state, and the
+  decision to defer Jujutsu adoption.
 - `docs/SETUP.md` — post-clone tool-enablement steps.
 - Makefile quality gate; Bazel scaffolding (unverified pending bazelisk).
 - Beads configuration (`issue_prefix: points`), canonical `.gitignore`,
