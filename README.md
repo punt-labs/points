@@ -92,6 +92,7 @@ scaffold. The central decisions are:
 [OpenCode clients](docs/opencode/12-server-clients.md) |
 [OpenCode worktrees](docs/opencode/13-worktrees-references.md) |
 [OpenCode compaction](docs/opencode/15-compaction-context.md) |
+[OpenCode tool output](docs/opencode/16-tool-output-attachments.md) |
 [Development setup](docs/SETUP.md) |
 [Public release readiness](docs/PUBLIC-RELEASE.md) |
 [Contributing](CONTRIBUTING.md) |

@@ -103,7 +103,10 @@ own inherited environment. Therefore:
 
 - Specialist prompts must not request environment dumps.
 - Evidence commands report presence or classification, never values.
-- `make check` and review include secret-pattern scans where appropriate.
+- `make check-dev` (via `.bin/check-dev-config.sh`) and review include
+  secret-pattern scans over selected paths; see
+  `docs/opencode/16-tool-output-attachments.md` for the scan's exact scope and
+  the unredacted-output caveat.
 - Provider credentials are rotated after configuration stabilizes.
 
 ## Validation

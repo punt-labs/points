@@ -48,6 +48,9 @@ All notable changes to `points` are documented here. The format follows
 - OpenCode compaction and context management: summary vs native compaction,
   reserved context, checkpoint shape, transcript independence, and maintenance
   model routing.
+- OpenCode tool output and attachments: universal truncation with full-output
+  retrieval, shell capture paging, image/media handling, and the unredacted
+  secret-sink caveat.
 - `docs/SETUP.md` — post-clone tool-enablement steps.
 - Makefile quality gate; Bazel scaffolding (unverified pending bazelisk).
 - Beads configuration (`issue_prefix: points`), canonical `.gitignore`,
