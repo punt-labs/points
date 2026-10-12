@@ -12,9 +12,10 @@ overlapping turns inside one session.
 
 This serialization applies to model turns, not to long-running tool work.
 Subagents and shells run as **jobs** in a process-local registry keyed by the
-child session ID or the shell ID. Jobs are forked in parallel and outlive the
-plugin call that launched them, so a background job keeps running while its
-owning session returns to the model and starts its next turn.
+child session ID or the shell ID, forked in parallel. A foreground tool call
+blocks on its job until it completes. A background job instead outlives the
+plugin call that launched it and keeps running while its owning session returns
+to the model and starts its next turn.
 
 ## Subagents
 
@@ -79,9 +80,9 @@ Background completion is not a signal the leader must watch for. The job deliver
 a **synthetic message** into the parent session's inbox carrying the result, and
 the message resumes the parent. Subagent notifications carry
 `metadata.source = "subagent"` with the child ID, agent, and state; shell
-notifications carry the command output and shell/job IDs. Notifications are
-deduplicated per `childSessionID:startedAt`, and the durable background marker is
-cleared once the notification is admitted.
+notifications carry the command output and shell/job IDs. Subagent notifications
+are deduplicated per `childSessionID:startedAt`. In both cases the durable
+background marker is cleared once the notification is admitted.
 
 The correct leader behavior after launching background work is to do other
 non-overlapping work or end the turn; it will be resumed when the notification
