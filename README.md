@@ -90,6 +90,7 @@ scaffold. The central decisions are:
 [OpenCode sessions](docs/opencode/10-sessions-persistence.md) |
 [OpenCode concurrency](docs/opencode/11-background-concurrency.md) |
 [OpenCode clients](docs/opencode/12-server-clients.md) |
+[OpenCode worktrees](docs/opencode/13-worktrees-references.md) |
 [Development setup](docs/SETUP.md) |
 [Public release readiness](docs/PUBLIC-RELEASE.md) |
 [Contributing](CONTRIBUTING.md) |
