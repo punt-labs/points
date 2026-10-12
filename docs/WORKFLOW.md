@@ -59,6 +59,13 @@ Every non-trivial unit starts as a Beads issue with description, acceptance
 criteria, design context, priority, and dependency edges. An issue is one
 rollback-coherent result, not a department-sized phase.
 
+Delivery units are thin end-to-end product increments, not horizontal modules.
+Use the `incremental-delivery` skill before creating or restructuring a feature
+epic. Slice Beads own demonstrable operator outcomes; module Beads may support or
+harden a slice but do not form a core → catalog → writer → backend → integration
+pipeline. A module dependency is added only when a current slice consumes its
+result.
+
 ```text
 intake → validate → split/link → claim → execute PR loop → close
 ```
@@ -72,6 +79,21 @@ An issue may be claimed when:
 - Dependencies and blockers reflect reality.
 - The issue fits one pull request or has been decomposed into child issues.
 - Any required design or formal-spec predecessor is explicit.
+- A feature issue states the exact operator demo, real seams exercised, risk
+  retired, unit/integration/end-to-end evidence, and explicit omissions.
+
+### Spikes and walking skeletons
+
+Use a timeboxed spike when uncertainty is too high to choose a slice safely. Its
+output is evidence and a decision; discard its code by default. A spike records
+the question, timebox, smallest experiment, evidence, decision, and code
+disposition.
+
+The first feature increment is a walking skeleton: the thinnest production
+behavior through the public entry point, domain decision, real adapter or write
+boundary, and observable result. It need not support every source, harness, or
+failure partition. It must run, merge, and become the base that later slices
+widen and refactor.
 
 Use `bd ready --json` to choose unblocked work and `bd update <id> --claim
 --json` to acquire it atomically.
@@ -102,6 +124,8 @@ Before changing the system:
 - Reproduce the current user-visible behavior or failure.
 - Record the expected outcome in the Beads acceptance criteria.
 - Read the governing Z operation, invariant, and TTF partitions.
+- Run the real public entry point for the current baseline, even when it only
+  demonstrates a missing capability. Record the exact command and result.
 
 A broken baseline is evidence, not noise. Classify it before proceeding.
 
@@ -212,6 +236,12 @@ Before dispatch, record:
   model. Open-weight agents may work or provide experimental evidence, but may
   not issue the independent Ethos verdict.
 - **Round budget:** maximum correction rounds before escalation.
+- **Slice evidence:** operator demo, seams crossed, risk retired, explicit
+  omissions, and tests at unit, integration/contract, and installed-artifact
+  end-to-end levels.
+- **First-running checkpoint:** the first commit where the thin path ran, the
+  current end-to-end command, its latest successful result, and every seam still
+  mocked or bypassed.
 
 Pass only this context to the worker. Do not send the entire session transcript
 when the contract and cited artifacts are sufficient.
@@ -227,6 +257,10 @@ create contract → spawn named subagent → verify it started
 
 Workers commit logical steps and run `make check` before each commit. The leader
 owns branch creation, pushes, PRs, review threads, and merge operations.
+Workers get the thinnest real path running early and rerun it whenever another
+seam is connected. Do not accumulate a large body of code that has only compiled
+or passed isolated tests. Compilation, mocks, snapshots, and unit tests do not
+count as integrated execution through the shipped entry point.
 
 ### Evidence Gate
 
@@ -320,6 +354,12 @@ A PR unit is complete only when:
 - `make check` passes on the complete diff.
 - Local review has zero material findings.
 - The built or installed CLI was exercised through the changed user workflow.
+- The slice has focused unit evidence, real-boundary integration or contract
+  evidence, and at least one end-to-end acceptance test through the installed
+  public entry point. The relative quantity follows `docs/TESTPLAN.md`'s test
+  pyramid; one end-to-end test does not replace broad lower-level coverage.
+- The worker reported the first-running checkpoint and no material integration
+  seam remains silently mocked or deferred.
 - The operator confirmed the demo when human judgment was required.
 - CI and remote review gates pass on the latest commit.
 - The branch, issue state, and handoff are pushed and durable.

@@ -1,0 +1,23 @@
+{
+  "skill_name": "incremental-delivery",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Plan our new CLI. I made tasks for the parser, domain core, API client, config writers, storage backends, status command, and then an integration phase. Turn this into a Beads graph we can start implementing.",
+      "expected_output": "Rejects the horizontal delivery sequence; proposes a walking skeleton and ordered user-visible slices, preserves module work as supporting/hardening tasks, and gives every slice unit, integration, and installed-entry-point evidence.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "We do not know whether the target harness reloads config atomically or requires restart. Plan the feature that writes its config and verifies it.",
+      "expected_output": "Creates a timeboxed spike with a question, experiment, evidence, decision, and code disposition before choosing the smallest real end-to-end slice; does not let spike code silently become production architecture.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Fix the typo in the version command help text and add a regression assertion. It is one line and has no integration behavior change.",
+      "expected_output": "Does not force an elaborate walking-skeleton decomposition; treats the bounded fix proportionally while still requiring the relevant test and real command check.",
+      "files": []
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 // Package internal is the home for points' implementation packages.
 //
-// Planned layout (see docs/spec/points.target.spec.tex for the formal model):
+// Architecture boundaries (see docs/spec/points.target.spec.tex for the formal
+// model). These are not an implementation sequence: grow them through thin
+// end-to-end slices that run through the real CLI from the first increment.
 //
 //	internal/catalog  — fetch + cache a source's model catalog (providers served)
 //	internal/route    — the pure core: selection → per-harness config content

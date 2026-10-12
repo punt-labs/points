@@ -74,11 +74,15 @@ if grep -RqsE 'run: (make )?doctor($| )' .github/workflows; then
   fail 'public CI must not run workstation-only make doctor'
 fi
 
-expected_skills='agent-mail ethos-mission punt-dev-doctor quarry-capture quarry-recall'
+expected_skills='agent-mail ethos-mission incremental-delivery punt-dev-doctor quarry-capture quarry-recall'
 actual_skills=$(find .opencode/skills -mindepth 2 -maxdepth 2 -name SKILL.md \
   -printf '%h\n' | xargs -r -n1 basename | sort | xargs)
 test "$actual_skills" = "$expected_skills" ||
   fail "project skill roster differs: expected [$expected_skills], got [$actual_skills]"
+grep -q 'incremental-delivery' AGENTS.md ||
+  fail 'AGENTS.md must require incremental-delivery for feature decomposition'
+grep -q 'incremental-delivery' docs/WORKFLOW.md ||
+  fail 'docs/WORKFLOW.md must define the incremental-delivery gate'
 
 for skill in $expected_skills; do
   file=".opencode/skills/${skill}/SKILL.md"
