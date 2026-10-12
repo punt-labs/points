@@ -93,6 +93,7 @@ scaffold. The central decisions are:
 [OpenCode worktrees](docs/opencode/13-worktrees-references.md) |
 [OpenCode compaction](docs/opencode/15-compaction-context.md) |
 [OpenCode tool output](docs/opencode/16-tool-output-attachments.md) |
+[OpenCode CLI](docs/opencode/17-cli-automation.md) |
 [Development setup](docs/SETUP.md) |
 [Public release readiness](docs/PUBLIC-RELEASE.md) |
 [Contributing](CONTRIBUTING.md) |
