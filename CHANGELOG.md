@@ -39,6 +39,9 @@ All notable changes to `points` are documented here. The format follows
   iterative Qodo, Cursor Bugbot, and Copilot review loop.
 - OpenCode session lifecycle and cross-system ID ownership for Beads, Ethos,
   Circuit, Git, and GitHub correlation.
+- OpenCode background work and concurrency: subagent/shell jobs, depth cap,
+  steer/queue, completion notifications, cancellation, restart recovery, and
+  write-set/worktree isolation.
 - `docs/SETUP.md` — post-clone tool-enablement steps.
 - Makefile quality gate; Bazel scaffolding (unverified pending bazelisk).
 - Beads configuration (`issue_prefix: points`), canonical `.gitignore`,

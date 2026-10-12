@@ -290,9 +290,12 @@ OpenAI routes; QA exercises Bedrock GPT-OSS 120B as an open-weight model. All
 except `gstack-implementer` are
 read-only.
 
-OpenCode 2 does not retain the V1 `subagent_depth` compatibility field in its
-native resolved config. The exemplar therefore enforces one-level delegation
-directly: every specialist ends with a `subagent: deny` permission rule.
+OpenCode 2 moved the top-level V1 `subagent_depth` field to
+`experimental.subagent_depth` (default `1`), which caps subagent nesting by
+walking the `parentID` chain. The exemplar leaves it at the default and does not
+rely on the cap alone: every specialist runs on a deny-all permission baseline
+with no `subagent` grant, so a specialist cannot delegate regardless of depth.
+See `docs/opencode/11-background-concurrency.md` for the full concurrency model.
 
 These files are temporary authored sources until Ethos can generate OpenCode 2
 agents. Future generation must flow from the Ethos registry to
