@@ -91,6 +91,7 @@ scaffold. The central decisions are:
 [OpenCode concurrency](docs/opencode/11-background-concurrency.md) |
 [OpenCode clients](docs/opencode/12-server-clients.md) |
 [OpenCode worktrees](docs/opencode/13-worktrees-references.md) |
+[OpenCode compaction](docs/opencode/15-compaction-context.md) |
 [Development setup](docs/SETUP.md) |
 [Public release readiness](docs/PUBLIC-RELEASE.md) |
 [Contributing](CONTRIBUTING.md) |
