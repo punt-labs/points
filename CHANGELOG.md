@@ -51,6 +51,9 @@ All notable changes to `points` are documented here. The format follows
 - OpenCode tool output and attachments: universal truncation with full-output
   retrieval, shell capture paging, image/media handling, and the unredacted
   secret-sink caveat.
+- OpenCode CLI and automation surface: non-interactive `run` JSONL output and
+  exit statuses, `api`/`service`/`debug` usage, and `--auto`/`auth export`
+  safety notes.
 - `docs/SETUP.md` — post-clone tool-enablement steps.
 - Makefile quality gate; Bazel scaffolding (unverified pending bazelisk).
 - Beads configuration (`issue_prefix: points`), canonical `.gitignore`,
