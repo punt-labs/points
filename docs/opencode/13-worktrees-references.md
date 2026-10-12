@@ -28,7 +28,7 @@ project-scoped: each is a row in a per-project table keyed by
   under known roots, claims unowned rows, and drops rows whose directories are
   gone. Discovery never steals a directory already owned by another strategy.
 
-The only built-in strategy is **git** (`git worktree create/remove/list`). It is
+The only built-in strategy is **git** (`git worktree add/remove/list`). It is
 auto-selected when the project's detected VCS type is `git`. Other strategies are
 added by plugin; adding one makes it the selected strategy.
 
@@ -46,13 +46,17 @@ directory as its location.
 A worktree under the global data directory is **outside** the main session's
 location. Reaching it — reading, editing, or running a shell with that `workdir`
 — crosses the `external_directory` approval boundary, which is evaluated before
-read/edit/shell permission. In this repo the six gstack specialists and the
-researcher are granted `external_directory: *` (they already need to reach
-sibling repos such as `../circuit` and the OpenCode source checkout), so a
-specialist working in a project worktree is not additionally blocked. Keep that
-grant deliberate: it is what lets a worker operate in an isolated worktree, and
-it is also what lets a worker touch unrelated directories, so the shell
-allowlist remains the real constraint.
+read/edit/shell permission and applies to file tools, not only to the shell. In
+this repo the six gstack specialists and the researcher are granted
+`external_directory: *` (they already need to reach sibling repos such as
+`../circuit` and the OpenCode source checkout), so a specialist working in a
+project worktree is not additionally blocked. Keep that grant deliberate: it is
+what lets a worker operate in an isolated worktree, and — combined with each
+specialist's `read: *` (and the implementer's `edit: *`) — it is also what lets a
+worker read or edit unrelated directories without a shell at all. The
+`external_directory` grant, not the shell allowlist, is therefore the effective
+boundary on cross-directory access; the shell allowlist only constrains which
+commands run.
 
 ## References
 
@@ -96,15 +100,25 @@ Revisit only if (a) a jj VCS provider/worktree strategy exists for OpenCode, or
 CLI, Beads Dolt sync, and Ethos hooks against a colocated repo. Until then, keep
 `points-p70` open as a watch item, not an action.
 
-## Shared Beads and Ethos state across worktrees
+## Beads and Ethos state across worktrees
 
-Beads (Dolt) and Ethos state are repository/identity scoped, not per-worktree.
-Multiple git worktrees of one project share the same `.git` common directory and
-the same Beads database and Ethos records. Concurrent workers in separate
-worktrees therefore share one task graph and one mission/audit store; isolation
-applies to the working files, not to Beads or Ethos state. Keep write-sets
-disjoint so parallel workers do not collide on files even while they share the
-task and mission stores.
+Beads and Ethos do **not** share the same storage model, and the difference
+matters when workers run in separate worktrees.
+
+- **Beads is shared.** Issues live in a central Hosted DoltDB; there is no
+  per-repo or per-worktree issue store. Every worktree resolves the same
+  `issue_prefix` from `.beads/metadata.json` and sees one task graph.
+- **Ethos mission state is per-checkout.** Missions are working-tree files under
+  `.punt-labs/ethos/missions/`, which is git-ignored by design — it is not stored
+  in `.git`. Git worktrees share the common `.git` directory but each has its own
+  working tree, so each worktree gets a **separate** `.punt-labs/ethos/missions/`
+  directory. Workers in different worktrees therefore share the Beads graph but
+  **not** each other's mission/delegation records.
+
+Practical consequence: run a mission and its worker/evaluator in the same
+checkout so they see the same mission store. If concurrent work spans worktrees,
+coordinate through Beads (shared) and keep write-sets disjoint; do not assume a
+mission created in one worktree is visible in another.
 
 ## Decisions
 
@@ -115,10 +129,11 @@ task and mission stores.
 - Use references only for read-only external material; never do work in a
   reference path.
 - Preserve the specialists' `external_directory: *` grant as the enabler for
-  worktree and sibling-repo work, and rely on the shell allowlist as the active
-  constraint.
-- Treat Beads and Ethos state as shared across a project's worktrees; rely on
-  disjoint write-sets for safe parallelism.
+  worktree and sibling-repo work, and treat that grant (not the shell allowlist)
+  as the effective cross-directory boundary.
+- Treat Beads as shared across a project's worktrees but Ethos mission state as
+  per-checkout; keep a mission and its worker/evaluator in one checkout, and rely
+  on disjoint write-sets for safe parallelism.
 
 ## Runtime evidence
 
