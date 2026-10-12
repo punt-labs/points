@@ -27,10 +27,12 @@ root help. List agents with `opencode debug agents`.
 
 `opencode run [flags] <message…>` is the scripting entry point:
 
-- `--format default|json` — `json` emits a newline-delimited stream of part
-  events, not a single JSON document. Each line is one event (`step_start`,
-  `text`, tool use, …) stamped with `sessionID`, `messageID`, and timing. Parse
-  it line by line (`jq -c`, `grep`), as this audit did.
+- `--format default|json` — `json` emits a newline-delimited stream of events,
+  not a single JSON document. Each line has top-level `type`, `timestamp`, and
+  `sessionID`; event-specific detail (including `messageID`, part `id`, and
+  `time`) is nested under a `part` object and is not present on every event type.
+  Parse it line by line (`jq -c`, `grep`) and read nested fields from `part`, as
+  this audit did.
 - `--session, -s <id>` continues (or creates) a specific session; `--continue, -c`
   continues the last; `--fork` forks before continuing.
 - `--model`, `--agent`, `--title`, `--file`, `--thinking` select model/agent,
@@ -43,8 +45,12 @@ root help. List agents with `opencode debug agents`.
 Verified behavior: `run` exits `0` on success and `1` on failure (unknown agent,
 and other run failures). `api` exits `1` on an unknown path, and unknown flags
 exit `1`. Automation can gate on a non-zero exit, but should not assume distinct
-codes per failure class — treat non-zero as "failed" and read stderr for the
-reason.
+codes per failure class — treat non-zero as "failed".
+
+Read the failure reason from the right stream for the format in use. With
+`--format json`, a runtime failure is emitted to **stdout** as a JSON `error`
+event (`{"type":"error",…,"error":{"message":…}}`) and stderr is empty, so parse
+the stdout stream for the `error` event. In `default` format, read stderr.
 
 ## Server and service
 
