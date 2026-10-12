@@ -242,6 +242,14 @@ MCP servers initialize asynchronously. After a restart or config change, allow
 the local servers time to load before treating a partial list as a failure; run
 `opencode mcp list` again after startup settles.
 
+The project gives MCP initialization a 120-second startup budget and a
+60-second catalog budget. OpenCode's 30-second startup default is too short when
+multiple active locations cold-start separate local MCP process sets at once;
+late initialization responses then appear as unknown request IDs after the
+original connection has already timed out. Preserve the explicit V2
+`mcp.timeout.startup` setting rather than relying on legacy scalar timeout
+normalization.
+
 Protect the shared local service with the pass-backed password procedure in
 `docs/opencode/12-server-clients.md`. An unauthenticated `/api/info` request must
 return HTTP 401 while normal OpenCode CLI and Desktop clients continue to work.
