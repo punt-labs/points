@@ -107,12 +107,14 @@ not a dependency.
 
 ### Exit
 
-Close an issue only after its PR unit has passed local review, installed-artifact
-verification, and the applicable demo. If a PR is abandoned, reopen its closed
+Close an issue only after its PR unit has passed local review and its applicable
+acceptance evidence. User-visible product work also requires installed-artifact
+verification and the operator demo; other work classes use the proportionate
+checks named by their own criteria. If a PR is abandoned, reopen its closed
 issue. New work outside the current rollback unit becomes a linked
 `discovered-from` issue; defects inside the unit are fixed in the current PR.
 
-## PR Loop: One Reversible Product Increment
+## PR Loop: One Reversible Increment
 
 One PR loop owns one branch and produces one mergeable result.
 
@@ -162,8 +164,9 @@ After accepted mission results accumulate:
 3. Run `gstack-security` when routes, credentials, config writes, dependencies,
    or trust boundaries changed.
 4. Run `gstack-qa` against the user workflow and failure cases.
-5. Install or build the exact artifact being shipped and exercise it through its
-   public entry point.
+5. For user-visible product work, install or build the exact artifact being
+   shipped and exercise it through its public entry point. Other work classes
+   run the proportionate real check named by their acceptance criteria.
 6. Ask the operator to confirm user-facing behavior where machine evidence is
    insufficient.
 
