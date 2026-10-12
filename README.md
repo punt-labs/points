@@ -88,6 +88,7 @@ scaffold. The central decisions are:
 [OpenCode plugins](docs/opencode/08-plugins-hooks.md) |
 [OpenCode tools](docs/opencode/09-tools.md) |
 [OpenCode sessions](docs/opencode/10-sessions-persistence.md) |
+[OpenCode concurrency](docs/opencode/11-background-concurrency.md) |
 [OpenCode clients](docs/opencode/12-server-clients.md) |
 [Development setup](docs/SETUP.md) |
 [Public release readiness](docs/PUBLIC-RELEASE.md) |
