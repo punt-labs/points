@@ -85,6 +85,7 @@ round-trip unrelated configuration rather than replacing the file wholesale.
 `make doctor` validates the active OpenCode service and local toolchain. Global
 model/provider configuration is user state and is runtime-tested with
 `opencode models`, `opencode debug agents`, and representative runs; it is not
-copied into the repository. The resolved global configuration is visible locally
-through `opencode debug config` (see `docs/opencode/17-cli-automation.md`), but
-the project's committed gates deliberately do not read or assert that user state.
+copied into the repository. The global configuration source is visible locally
+through `opencode debug config`, which lists ordered configuration sources (see
+`docs/opencode/17-cli-automation.md`), but the project's committed gates
+deliberately do not read or assert that user state.

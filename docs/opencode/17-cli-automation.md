@@ -66,19 +66,23 @@ environment (`direnv allow`), or the local MCP servers fail as a group (area 12,
 `docs/SETUP.md`). Do not restart the shared service from inside an active working
 session; schedule it between sessions.
 
-## Reading resolved state
+## Reading configuration and resolved state
 
-`opencode debug` is the trustworthy way to see what OpenCode actually resolved,
-rather than inferring from the config files:
+`opencode debug` is the trustworthy way to inspect what OpenCode loaded, rather
+than inferring from the config files — but note what each subcommand returns:
 
-- `debug config` — ordered configuration sources as JSON. This repo's resolved
-  global config shows `default_agent: build` and the maintenance models
+- `debug config` — the **ordered configuration sources** as JSON, each with its
+  path and contents, not a single merged/effective config. A higher-priority
+  source can still override a global entry, so read it as "what each source
+  declares," not "the effective value." In this repo the global source shows
+  `default_agent: build` and the maintenance models
   (`title → bedrock/gpt-5.6-luna`, `compaction`/`summary → bedrock/gpt-5.6-terra`),
-  confirming the area-15 title fix is live.
+  confirming the area-15 title fix is present in that source.
 - `debug paths` — `home`, `data`, `cache`, `config`, `state`, `tmp`, `bin`,
   `log`, `repos`, and `db` (`<data>/opencode.db`, the shared session store from
   area 10).
-- `debug agents` — the resolved agent roster.
+- `debug agents` — the resolved agent roster (this one is the effective result,
+  after merging).
 
 Prefer these over hand-parsing config when verifying an environment change, and
 use `api` for structured session/state queries.
@@ -121,8 +125,8 @@ automation behind explicit, reviewed scripts.
 Enumerated the full CLI surface and probed behavior directly on OpenCode
 v2.0.26: `run --format json` emits a JSONL part-event stream; `run`/`api` exit
 `0` on success and `1` on unknown agent, unknown API path, and unknown flag;
-`debug config` shows the live resolved maintenance models (including the
-corrected `title → bedrock/gpt-5.6-luna`); `debug paths` lists the data/config/
+`debug config` lists the global source with the corrected maintenance models
+(including `title → bedrock/gpt-5.6-luna`); `debug paths` lists the data/config/
 cache/state/db locations; `models` lists 507 entries; `service` and `debug`
 expose the subcommands documented above. No configuration change was made in this
 area.
