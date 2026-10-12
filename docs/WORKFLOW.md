@@ -124,8 +124,10 @@ Before changing the system:
 - Reproduce the current user-visible behavior or failure.
 - Record the expected outcome in the Beads acceptance criteria.
 - Read the governing Z operation, invariant, and TTF partitions.
-- Run the real public entry point for the current baseline, even when it only
-  demonstrates a missing capability. Record the exact command and result.
+- For user-visible product work, run the real public entry point for the current
+  baseline, even when it only demonstrates a missing capability. Record the
+  exact command and result. Documentation, design, spike, and configuration work
+  instead reproduces the artifact or uncertainty it actually changes.
 
 A broken baseline is evidence, not noise. Classify it before proceeding.
 
@@ -236,12 +238,17 @@ Before dispatch, record:
   model. Open-weight agents may work or provide experimental evidence, but may
   not issue the independent Ethos verdict.
 - **Round budget:** maximum correction rounds before escalation.
-- **Slice evidence:** operator demo, seams crossed, risk retired, explicit
-  omissions, and tests at unit, integration/contract, and installed-artifact
-  end-to-end levels.
-- **First-running checkpoint:** the first commit where the thin path ran, the
-  current end-to-end command, its latest successful result, and every seam still
-  mocked or bypassed.
+- **For product-slice implementation nodes — slice evidence:** operator demo,
+  seams crossed, risk retired, explicit omissions, and tests at unit,
+  integration/contract, and installed-artifact end-to-end levels.
+- **For product-slice implementation nodes — first-running checkpoint:** the
+  first commit where the thin path ran, the current end-to-end command, its
+  latest successful result, and every seam still mocked or bypassed.
+
+Documentation, design, review, configuration, module-support, and spike nodes do
+not fabricate product-slice fields. They provide observable evidence appropriate
+to their own output; spikes use the question, experiment, evidence, decision,
+and code-disposition contract above.
 
 Pass only this context to the worker. Do not send the entire session transcript
 when the contract and cited artifacts are sufficient.
@@ -257,10 +264,12 @@ create contract → spawn named subagent → verify it started
 
 Workers commit logical steps and run `make check` before each commit. The leader
 owns branch creation, pushes, PRs, review threads, and merge operations.
-Workers get the thinnest real path running early and rerun it whenever another
-seam is connected. Do not accumulate a large body of code that has only compiled
-or passed isolated tests. Compilation, mocks, snapshots, and unit tests do not
-count as integrated execution through the shipped entry point.
+For product-slice implementation, workers get the thinnest real path running
+early and rerun it whenever another seam is connected. Do not accumulate a large
+body of code that has only compiled or passed isolated tests. Compilation,
+mocks, snapshots, and unit tests do not count as integrated execution through
+the shipped entry point. Other workflow classes run the smallest real check of
+the artifact they change.
 
 ### Evidence Gate
 
@@ -353,13 +362,17 @@ A PR unit is complete only when:
 - Z verification was rerun for modeled behavior changes.
 - `make check` passes on the complete diff.
 - Local review has zero material findings.
-- The built or installed CLI was exercised through the changed user workflow.
-- The slice has focused unit evidence, real-boundary integration or contract
-  evidence, and at least one end-to-end acceptance test through the installed
-  public entry point. The relative quantity follows `docs/TESTPLAN.md`'s test
-  pyramid; one end-to-end test does not replace broad lower-level coverage.
-- The worker reported the first-running checkpoint and no material integration
-  seam remains silently mocked or deferred.
+- For user-visible product work, the built or installed CLI was exercised
+  through the changed user workflow.
+- For a product-slice PR, the slice has focused unit evidence, real-boundary
+  integration or contract evidence, and at least one end-to-end acceptance test
+  through the installed public entry point. The relative quantity follows
+  `docs/TESTPLAN.md`'s test pyramid; one end-to-end test does not replace broad
+  lower-level coverage.
+- For a product-slice PR, the worker reported the first-running checkpoint and
+  no material integration seam remains silently mocked or deferred.
+- Documentation, design, configuration, spike, and support PRs passed the
+  proportionate real checks named by their own acceptance criteria.
 - The operator confirmed the demo when human judgment was required.
 - CI and remote review gates pass on the latest commit.
 - The branch, issue state, and handoff are pushed and durable.

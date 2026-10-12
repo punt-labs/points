@@ -79,9 +79,9 @@ actual_skills=$(find .opencode/skills -mindepth 2 -maxdepth 2 -name SKILL.md \
   -printf '%h\n' | xargs -r -n1 basename | sort | xargs)
 test "$actual_skills" = "$expected_skills" ||
   fail "project skill roster differs: expected [$expected_skills], got [$actual_skills]"
-grep -q 'incremental-delivery' AGENTS.md ||
+grep -Fq 'Use the `incremental-delivery` skill before decomposing epics' AGENTS.md ||
   fail 'AGENTS.md must require incremental-delivery for feature decomposition'
-grep -q 'incremental-delivery' docs/WORKFLOW.md ||
+grep -Fq 'Use the `incremental-delivery` skill before creating or restructuring a feature' docs/WORKFLOW.md ||
   fail 'docs/WORKFLOW.md must define the incremental-delivery gate'
 
 for skill in $expected_skills; do

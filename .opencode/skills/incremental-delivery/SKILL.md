@@ -33,7 +33,7 @@ Before implementation or mission dispatch:
 
 ## Required slice contract
 
-For every slice or Bead, record:
+For every product-slice Bead, record:
 
 - **Outcome and demo:** exact operator command/flow and observable result.
 - **Scope:** one supported happy path and the most important adjacent failure;
@@ -51,6 +51,11 @@ For every slice or Bead, record:
   first end-to-end green commit, current command, last successful run, and any
   bypassed seam.
 - **Merge boundary:** one reversible PR, integrated before widening the feature.
+
+Supporting module, documentation, design, and configuration Beads use
+proportionate acceptance criteria for their artifact and the slice they support;
+they do not invent an installed-product demo. Spikes use the question/evidence/
+decision/code-disposition contract above instead of this product-slice contract.
 
 ## Detect bad decomposition
 
