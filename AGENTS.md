@@ -83,6 +83,8 @@ or local development-environment configuration.
 is `docs/spec/points.target.spec.tex`. The planned implementation separates the
 pure route calculation from source catalogs, per-harness writers, delivery
 backends, and verification; see `internal/doc.go` and `DESIGN.md`.
+Those are architecture boundaries, not the delivery sequence: evolve and harden
+them through thin end-to-end increments.
 
 ## Conventions & Patterns
 
@@ -91,6 +93,9 @@ backends, and verification; see `internal/doc.go` and `DESIGN.md`.
 - Keep routing and default-model configuration separate from user-owned agent
   model choices.
 - Derive table-driven tests from the specification partitions.
+- Use the `incremental-delivery` skill before decomposing epics or dispatching
+  substantive feature implementation. Prefer spikes and thin running slices
+  through the real CLI over completing horizontal modules before integration.
 - Use the built-in OpenCode `build` agent as primary orchestrator and the six
   `.opencode/agents/gstack-*.md` specialists for delegated work.
 - Treat `docs/SETUP.md` as the canonical OpenCode 2, MCP, and tooling setup
