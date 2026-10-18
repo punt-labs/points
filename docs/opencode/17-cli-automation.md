@@ -87,6 +87,12 @@ than inferring from the config files — but note what each subcommand returns:
 Prefer these over hand-parsing config when verifying an environment change, and
 use `api` for structured session/state queries.
 
+Do not print or capture the raw `/api/config` response: provider substitutions
+may contain resolved credentials. For diagnostics, pipe configuration output
+directly into a narrow `jq` projection that emits only the non-secret fields
+needed for the check. Treat any credential returned into tool output as exposed
+and rotate it immediately.
+
 ## Automation safety
 
 Two surfaces are footguns in scripts and must be used deliberately:
