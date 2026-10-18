@@ -24,13 +24,14 @@ mkdir -p "$scratch"
 catalog=$(mktemp "$scratch/points-opencode-models.XXXXXX")
 upstream=$(mktemp "$scratch/points-bifrost-models.XXXXXX")
 runtime=$(mktemp "$scratch/points-runtime-agents.XXXXXX")
+variants=$(mktemp "$scratch/points-effective-variants.XXXXXX")
 effective=$(mktemp "$scratch/points-effective-models.XXXXXX")
 basefile=$(mktemp "$scratch/points-effective-bifrost.XXXXXX")
 packagefile=$(mktemp "$scratch/points-effective-package.XXXXXX")
-trap 'rm -f "$catalog" "$upstream" "$runtime" "$effective" "$basefile" "$packagefile"' EXIT
+trap 'rm -f "$catalog" "$upstream" "$runtime" "$variants" "$effective" "$basefile" "$packagefile"' EXIT
 
 opencode models >"$catalog"
-opencode debug agents 2>/dev/null | jq -r '.[] | select(.model != null) | [.id, (.model.providerID + "/" + .model.id)] | @tsv' >"$runtime"
+opencode debug agents 2>/dev/null | jq -r '.[] | select(.model != null) | [.id, (.model.providerID + "/" + .model.id), (.model.variant // "")] | @tsv' >"$runtime"
 
 # Extract only model references from loaded config sources. Never materialize or
 # print the rest of /api/config/debug config because provider settings may contain
@@ -53,6 +54,18 @@ opencode debug config 2>/dev/null | jq -r '
   | [.key, (.value | model_ref)]
   | @tsv
 ' >"$effective"
+
+# Project the variants configured on loaded Bifrost model entries. Explicit
+# variants are required because the Responses runtime does not inherit the chat
+# runtime's generated reasoning variants.
+opencode debug config 2>/dev/null | jq -r '
+  .[]
+  | .info.providers.bifrost.models // {}
+  | to_entries[]
+  | .key as $model
+  | .value.variants[]?
+  | [$model, .id] | @tsv
+' | sort -u >"$variants"
 
 # Resolve the effective Bifrost URL from the same loaded source order as the
 # model assignments, while projecting only this non-secret field.
@@ -93,6 +106,10 @@ runtime_model() {
   awk -F '\t' -v id="$1" '$1 == id { print $2; exit }' "$runtime"
 }
 
+runtime_variant() {
+  awk -F '\t' -v id="$1" '$1 == id { print $3; exit }' "$runtime"
+}
+
 effective_model() {
   awk -F '\t' -v role="$1" '$1 == role { print $2; exit }' "$effective"
 }
@@ -100,9 +117,17 @@ effective_model() {
 for file in .opencode/agents/*.md; do
   id=$(basename "${file%.md}")
   configured=$(sed -n 's/^model: //p' "$file")
+  configured_variant=$(sed -n 's/^variant: //p' "$file")
   loaded=$(runtime_model "$id")
+  loaded_variant=$(runtime_variant "$id")
   check_available "$id configured" "$configured"
   test "$loaded" = "$configured" || fail "$id loaded model differs from configured model: loaded=${loaded:-<missing>} configured=$configured; reload or restart OpenCode"
+  test "$loaded_variant" = "$configured_variant" || fail "$id loaded variant differs from configured variant: loaded=${loaded_variant:-<none>} configured=${configured_variant:-<none>}; reload or restart OpenCode"
+  if test -n "$configured_variant"; then
+    model_id=${configured#bifrost/}
+    awk -F '\t' -v model="$model_id" -v variant="$configured_variant" '$1 == model && $2 == variant { found=1 } END { exit !found }' "$variants" \
+      || fail "$id variant is unavailable for effective model: $configured#$configured_variant"
+  fi
   check_available "$id loaded" "$loaded"
 done
 
