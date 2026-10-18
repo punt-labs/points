@@ -53,6 +53,13 @@ Llama 4 Maverick, and Mistral Large 3 remain available for experiments.
 Explicit OpenRouter OpenAI, GPT-OSS, and Llama entries remain available beside
 `openrouter/auto`. Anthropic entries are visible but not preferred.
 
+The custom Bifrost provider uses
+`@opencode/ai/providers/openai-compatible/responses`. Preferred GPT reasoning
+variants with function tools require the Responses API; the chat-completions
+runtime rejects that combination. `make doctor` validates the effective package
+and completes a real `gstack-product` read-tool turn so catalog presence alone
+cannot mask a broken transport.
+
 The source of truth for availability is Bifrost's authenticated `/models`
 response. OpenCode's configured catalog supplies model limits and variants; it
 does not discover accurate custom-provider capabilities automatically.

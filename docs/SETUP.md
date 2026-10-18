@@ -317,6 +317,11 @@ After changing an agent file, restart OpenCode, then verify the resolved roster.
 Do not use `opencode reload` for this workflow: reloading can disconnect local
 MCP child processes in the running session.
 
+Preferred GPT agents also require the Bifrost provider to use OpenCode's
+`openai-compatible/responses` runtime. `make doctor` checks the effective package
+and runs a disposable real tool-capable product-agent turn; a model merely
+appearing in `opencode models` is not sufficient health evidence.
+
 ```sh
 opencode debug agents
 ```

@@ -26,7 +26,8 @@ upstream=$(mktemp "$scratch/points-bifrost-models.XXXXXX")
 runtime=$(mktemp "$scratch/points-runtime-agents.XXXXXX")
 effective=$(mktemp "$scratch/points-effective-models.XXXXXX")
 basefile=$(mktemp "$scratch/points-effective-bifrost.XXXXXX")
-trap 'rm -f "$catalog" "$upstream" "$runtime" "$effective" "$basefile"' EXIT
+packagefile=$(mktemp "$scratch/points-effective-package.XXXXXX")
+trap 'rm -f "$catalog" "$upstream" "$runtime" "$effective" "$basefile" "$packagefile"' EXIT
 
 opencode models >"$catalog"
 opencode debug agents 2>/dev/null | jq -r '.[] | select(.model != null) | [.id, (.model.providerID + "/" + .model.id)] | @tsv' >"$runtime"
@@ -60,6 +61,12 @@ opencode debug config 2>/dev/null | jq -r '
 ' >"$basefile"
 base=$(cat "$basefile")
 test -n "$base" || fail 'global Bifrost baseURL is missing'
+opencode debug config 2>/dev/null | jq -r '
+  reduce .[] as $source (null; $source.info.providers.bifrost.package // .) // empty
+' >"$packagefile"
+package=$(cat "$packagefile")
+test "$package" = '@opencode/ai/providers/openai-compatible/responses' \
+  || fail "effective Bifrost package must support Responses tools+reasoning, got: ${package:-<missing>}"
 root=${base%/openai/v1}
 # Feed the credential through curl's stdin config so it never appears in the
 # process argument list or command diagnostics.

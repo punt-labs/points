@@ -117,6 +117,7 @@ doctor: build check-dev ## Verify the CLI and local OpenCode development service
 	  test "$$connected" -eq 8 || { echo "expected 8 connected MCP servers, got $$connected"; exit 1; }
 	@opencode debug agents | jq -e '([.[] | select(.id=="researcher")] | length)==1 and ([.[] | select(.id|startswith("gstack-"))] | length)==6' >/dev/null
 	@direnv exec . ./.bin/check-live-models.sh
+	@./.bin/check-agent-tool-smoke.sh
 
 .PHONY: spec
 spec: ## Type-check the target Z specification
