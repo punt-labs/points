@@ -99,6 +99,10 @@ grep -Fq 'Project specialists cannot mutate Ethos: the worker returns a' .openco
   fail 'ethos-mission skill must route specialist-authored artifacts through the leader'
 grep -Fq 'Project specialists intentionally lack Ethos mutation access' docs/WORKFLOW.md ||
   fail 'docs/WORKFLOW.md must assign Ethos persistence to the leader'
+test -x .bin/extract-subagent-result.sh ||
+  fail 'mission result extractor must exist and be executable'
+grep -Fq 'extract-subagent-result.sh' .opencode/skills/ethos-mission/SKILL.md ||
+  fail 'ethos-mission skill must require session/mission result correlation'
 
 for skill in $expected_skills; do
   file=".opencode/skills/${skill}/SKILL.md"

@@ -277,6 +277,14 @@ worker-authored `stop` reflection would preempt correction if the evaluator late
 finds a defect and is therefore a workflow failure, not a harmless ordering
 difference.
 
+The leader correlates every persisted artifact to both the child session and the
+mission contract. For long handoffs recovered from OpenCode, use
+`.bin/extract-subagent-result.sh`; it selects the latest completed assistant text
+by timestamp and refuses a result without the exact expected mission and round
+metadata.
+Array position, similar session IDs, and prose references to another mission are
+not identity evidence.
+
 Workers return saved edits, structured results, and exact check evidence. They do
 not stage, commit, push, or otherwise mutate Git. The leader reviews the diff and
 tool trace, runs the required checks independently, and owns branch creation,

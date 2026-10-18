@@ -41,6 +41,12 @@ Ethos; do not create a second checks file.
 Specialists also do not stage, commit, or push. The leader reviews and commits
 accepted edits. Treat `make --eval`, `make -f`, inline recipes, or similar
 indirection around denied shell commands as a mission failure.
+When a long result must be recovered from a child session, use
+`.bin/extract-subagent-result.sh <session-id> <mission-id> <round> <output-file>`
+rather than selecting a message by array position. The extractor requires the
+latest completed assistant artifact to declare the expected mission ID and round;
+never persist a result whose session, mission, and round identity were not
+cross-checked.
 
 ## Prerequisites
 
