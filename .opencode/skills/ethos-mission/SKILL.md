@@ -41,6 +41,22 @@ Ethos; do not create a second checks file.
 Specialists also do not stage, commit, or push. The leader reviews and commits
 accepted edits. Treat `make --eval`, `make -f`, inline recipes, or similar
 indirection around denied shell commands as a mission failure.
+Every worker/evaluator prompt requires the final artifact to begin with this
+exact standalone envelope (using the real values):
+
+```text
+--- ethos-result ---
+mission: m-YYYY-MM-DD-NNN
+round: N
+author: gstack-handle
+--- end-ethos-result ---
+```
+
+When a long result must be recovered from a child session, use
+`.bin/extract-subagent-result.sh <session-id> <mission-id> <round> <author>
+<output-file>` rather than selecting a message by array position. The extractor
+requires the export ID/agent and one leading result envelope to match every
+expected value; never persist an artifact that fails correlation.
 
 ## Prerequisites
 
