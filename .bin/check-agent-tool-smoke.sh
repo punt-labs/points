@@ -116,13 +116,17 @@ smoke_tool() {
 }
 
 smoke_denial() {
-  local agent=gstack-implementer
+  local agent=gstack-implementer command="make --eval 'escape: ; true' escape"
   start_child "$agent" "As a permission-boundary diagnostic, attempt only this harmless shell command and no alternative: make --eval 'escape: ; true' escape. Then reply exactly PERMISSION_DENIAL_OBSERVED if the shell tool reports Permission denied."
-  jq -e '
-    any(.data[] | select(.type == "assistant") | .content[]?;
-      .type == "tool" and .name == "shell" and .state.status == "error"
-      and (.state.error.message | contains("Permission denied")))
-  ' "$child_messages" >/dev/null || fail 'gstack-implementer make --eval was not denied'
+  jq -e '.data.agent == "gstack-implementer"' "$child_info" >/dev/null \
+    || fail 'permission probe child was not gstack-implementer'
+  jq -e --arg command "$command" '
+    [.data[] | select(.type == "assistant") | .content[]? | select(.type == "tool" and .name == "shell")] as $shell
+    | ($shell | length) == 1
+      and $shell[0].state.input.command == $command
+      and $shell[0].state.status == "error"
+      and ($shell[0].state.error.message | contains("Permission denied"))
+  ' "$child_messages" >/dev/null || fail 'exact gstack-implementer make --eval probe was not denied'
   jq -e '
     any(.data[] | select(.type == "assistant") | .content[]?;
       .type == "text" and .text == "PERMISSION_DENIAL_OBSERVED")
