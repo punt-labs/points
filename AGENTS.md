@@ -10,7 +10,8 @@ exits; it is not a proxy or daemon.
 
 The primary OpenCode `build` agent is the orchestrator. It decomposes work,
 maintains specifications, dispatches bounded work to the gstack specialists,
-evaluates evidence, and owns branches, pull requests, and merges. Delegate Go
+evaluates evidence, and owns branches, staging, commits, pushes, pull requests,
+and merges. Specialists return edits and evidence but never mutate Git. Delegate Go
 implementation to `gstack-implementer`; do not bypass the worker/evaluator map
 in `docs/WORKFLOW.md`. Open-weight models may work, but Ethos evaluators must be
 separate agents on preferred Bedrock OpenAI models.
@@ -98,6 +99,9 @@ them through thin end-to-end increments.
   through the real CLI over completing horizontal modules before integration.
 - Use the built-in OpenCode `build` agent as primary orchestrator and the six
   `.opencode/agents/gstack-*.md` specialists for delegated work.
+- Treat specialist shell permissions as workflow guardrails, not security
+  containment: write-enabled code can influence build/test execution. Keep
+  secrets out of worker prompts/output and review every tool trace and diff.
 - Treat `docs/SETUP.md` as the canonical OpenCode 2, MCP, and tooling setup
   reference.
 - Follow `docs/WORKFLOW.md` for the Beads graph, Ethos mission loop, gstack

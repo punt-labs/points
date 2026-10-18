@@ -260,13 +260,27 @@ when the contract and cited artifacts are sufficient.
 
 ```text
 create contract → spawn named subagent → verify it started
-  → worker returns result and evidence
-  → evaluator checks saved artifact
-  → accept, or return to the node that introduced the defect
+  → worker returns structured result/evidence to leader (no reflection)
+  → leader records result in Ethos with worker as author
+  → evaluator checks saved artifact and returns reflection/verdict to leader
+  → leader records reflection in Ethos with evaluator as author
+  → evaluator stop: accept/close
+  → evaluator continue or pivot: advance/correct
+  → evaluator escalate: return to operator
 ```
 
-Workers commit logical steps and run `make check` before each commit. The leader
-owns branch creation, pushes, PRs, review threads, and merge operations.
+Project specialists intentionally lack Ethos mutation access. The primary
+`build` leader persists the artifacts they author: worker result first, then the
+independent evaluator's reflection after review. Reflections are append-only and
+gate round advancement, so ordering and authorship are load-bearing. A
+worker-authored `stop` reflection would preempt correction if the evaluator later
+finds a defect and is therefore a workflow failure, not a harmless ordering
+difference.
+
+Workers return saved edits, structured results, and exact check evidence. They do
+not stage, commit, push, or otherwise mutate Git. The leader reviews the diff and
+tool trace, runs the required checks independently, and owns branch creation,
+staging, commits, pushes, PRs, review threads, and merges.
 For product-slice implementation, workers get the thinnest real path running
 early and rerun it whenever another seam is connected. Do not accumulate a large
 body of code that has only compiled or passed isolated tests. Compilation,
@@ -287,8 +301,16 @@ artifact, model-check report, or real-harness observation. A worker's claim and
 an evaluator's confidence are not evidence by themselves. Missing evidence is
 `unresolved`, never an inferred pass.
 
-Ethos owns the durable contract, result, reflection, and audit log. The leader
-does not copy them into a second checks file.
+Ethos owns the durable contract, worker result, evaluator reflection, and audit
+log. The leader does not copy them into a second checks file.
+
+Specialist shell allowlists are workflow guardrails, not a security sandbox. A
+write-enabled worker can change build/test inputs that approved commands execute.
+Use isolated worktrees for writers, keep credentials out of prompts and output,
+inspect tool traces for permission evasions, and independently review all edits
+before the leader commits them. `make --eval`, `make -f`, inline recipes, and
+other indirection that executes commands outside approved canonical targets are
+permission bypasses and fail the mission.
 
 OpenCode, Beads, Ethos, Circuit, Git, and GitHub retain their own identifiers and
 state authority. Correlate them through OpenCode session metadata and explicit

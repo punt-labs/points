@@ -63,6 +63,15 @@ for file in .opencode/agents/gstack-*.md; do
     fail "$file has wildcard shell access"
   fi
 done
+if grep -Rqs 'resource: "make \*"' .opencode/agents/gstack-*.md; then
+  fail 'gstack agents must not have wildcard make access; inline make recipes bypass the shell allowlist'
+fi
+bad_make=$(grep -h 'resource: "make' .opencode/agents/gstack-*.md |
+  grep -Ev '^    resource: "make( (build|check|check-dev|coverage|spec|test))?"$' || true)
+test -z "$bad_make" || fail "gstack make allowlist contains unapproved forms: $bad_make"
+if grep -RqsE 'resource: "git (add|commit|push)' .opencode/agents/gstack-*.md; then
+  fail 'gstack agents must not mutate Git; the build leader owns staging, commits, and pushes'
+fi
 
 ./.bin/check-ethos-evaluator-models.sh
 
@@ -86,6 +95,10 @@ grep -Fq 'Use the `incremental-delivery` skill before decomposing epics' AGENTS.
   fail 'AGENTS.md must require incremental-delivery for feature decomposition'
 grep -Fq 'Use the `incremental-delivery` skill before creating or restructuring a feature' docs/WORKFLOW.md ||
   fail 'docs/WORKFLOW.md must define the incremental-delivery gate'
+grep -Fq 'Project specialists cannot mutate Ethos: the worker returns a' .opencode/skills/ethos-mission/SKILL.md ||
+  fail 'ethos-mission skill must route specialist-authored artifacts through the leader'
+grep -Fq 'Project specialists intentionally lack Ethos mutation access' docs/WORKFLOW.md ||
+  fail 'docs/WORKFLOW.md must assign Ethos persistence to the leader'
 
 for skill in $expected_skills; do
   file=".opencode/skills/${skill}/SKILL.md"
