@@ -260,18 +260,22 @@ when the contract and cited artifacts are sufficient.
 
 ```text
 create contract → spawn named subagent → verify it started
-  → worker submits result and evidence (no reflection)
-  → evaluator checks saved artifact and submits the round reflection
+  → worker returns structured result/evidence to leader (no reflection)
+  → leader records result in Ethos with worker as author
+  → evaluator checks saved artifact and returns reflection/verdict to leader
+  → leader records reflection in Ethos with evaluator as author
   → evaluator stop: accept/close
   → evaluator continue or pivot: advance/correct
   → evaluator escalate: return to operator
 ```
 
-Reflections are append-only and gate round advancement, so their ownership is
-load-bearing: the worker never reflects on its own result. The independent
-evaluator reflects only after review. A worker-authored `stop` reflection would
-preempt correction if the evaluator later finds a defect and is therefore a
-workflow failure, not a harmless ordering difference.
+Project specialists intentionally lack Ethos mutation access. The primary
+`build` leader persists the artifacts they author: worker result first, then the
+independent evaluator's reflection after review. Reflections are append-only and
+gate round advancement, so ordering and authorship are load-bearing. A
+worker-authored `stop` reflection would preempt correction if the evaluator later
+finds a defect and is therefore a workflow failure, not a harmless ordering
+difference.
 
 Workers commit logical steps and run `make check` before each commit. The leader
 owns branch creation, pushes, PRs, review threads, and merge operations.
