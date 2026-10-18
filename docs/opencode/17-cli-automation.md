@@ -76,7 +76,7 @@ than inferring from the config files — but note what each subcommand returns:
   source can still override a global entry, so read it as "what each source
   declares," not "the effective value." In this repo the global source shows
   `default_agent: build` and the maintenance models
-  (`title → bedrock/gpt-5.6-luna`, `compaction`/`summary → bedrock/gpt-5.6-terra`),
+  (`title → openai/gpt-5.6-luna`, `compaction`/`summary → openai/gpt-5.6-terra`),
   confirming the area-15 title fix is present in that source.
 - `debug paths` — `home`, `data`, `cache`, `config`, `state`, `tmp`, `bin`,
   `log`, `repos`, and `db` (`<data>/opencode.db`, the shared session store from
@@ -126,7 +126,7 @@ Enumerated the full CLI surface and probed behavior directly on OpenCode
 v2.0.26: `run --format json` emits a JSONL part-event stream; `run`/`api` exit
 `0` on success and `1` on unknown agent, unknown API path, and unknown flag;
 `debug config` lists the global source with the corrected maintenance models
-(including `title → bedrock/gpt-5.6-luna`); `debug paths` lists the data/config/
+(including `title → openai/gpt-5.6-luna`); `debug paths` lists the data/config/
 cache/state/db locations; `models` lists 507 entries; `service` and `debug`
 expose the subcommands documented above. No configuration change was made in this
 area.

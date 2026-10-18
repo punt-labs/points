@@ -1,7 +1,7 @@
 ---
 description: Reviews diffs for correctness, completeness, and project conventions; use after implementation and before acceptance testing.
 mode: subagent
-model: bifrost/bedrock/gpt-5.6-sol
+model: bifrost/openai/gpt-5.6-sol
 variant: high
 color: "#2563eb"
 steps: 32

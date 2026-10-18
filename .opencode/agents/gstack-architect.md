@@ -1,7 +1,7 @@
 ---
 description: Designs and reviews architecture before implementation; use for package boundaries, invariants, interfaces, and tradeoffs.
 mode: subagent
-model: bifrost/bedrock/gpt-6-astra
+model: bifrost/openai/gpt-6-astra
 variant: high
 color: "#7c3aed"
 steps: 24

@@ -2,9 +2,11 @@
 
 ## Decision
 
-`points` uses OpenCode's built-in plugins only. It has no global or project
-external OpenCode plugin and no experimental hook configuration. The active
-plugin API reports every plugin as built-in and active.
+`points` project configuration uses OpenCode's built-in plugins only and has no
+experimental hook configuration. The workstation also runs the reviewed global
+`herdr.opencode` local plugin for pane/session state reporting when launched by
+Herdr. The active plugin API must report every built-in and the one allowlisted
+Herdr integration as active; any other external plugin is drift.
 
 Keep integrations in the narrowest owner:
 
@@ -17,7 +19,9 @@ Keep integrations in the narrowest owner:
 
 Wrapping Ethos, Quarry, Biff, Vox, Beadle, Lux, Context7, or Brave in project
 plugins would duplicate existing MCP ownership and add startup/failure coupling.
-No custom plugin is justified today.
+No project custom plugin is justified today. The global Herdr plugin is a narrow
+lifecycle integration: it reports session state to the Herdr socket only when
+the Herdr environment is present and does not own project routing or tools.
 
 ## Built-in plugin surface
 
@@ -81,6 +85,8 @@ sessions, worktrees, and provider requests. Adding one therefore requires an
 explicit area-8 review, pinned source/version, startup and unload tests,
 cancellation, failure isolation, secret analysis, and rollback documentation.
 `make check-dev` rejects unreviewed project `plugins` or `experimental` config.
+`make doctor` allows only built-ins plus the reviewed global `herdr.opencode`
+integration and prints any unapproved or unhealthy inventory row.
 
 After upgrading Ethos or Biff, rerun their enable/doctor commands. Git hooks are
 per-clone; committed markers and workflow files are shared. After changing an
@@ -98,10 +104,11 @@ ownership, not a plugin that merely blocks Git commands.
 ## Validation
 
 `make check-dev` validates that project plugin/experimental fields are absent
-and Biff watches both quality workflows. `make doctor` requires all active
-OpenCode plugins to be built-in and healthy, Ethos hook checks to pass, and Biff
-deployment to be current. Normal `make check` continues to lint committed
-workflow and source artifacts.
+and Biff watches both quality workflows. `make doctor` requires built-ins and
+the allowlisted `herdr.opencode` integration to be healthy, rejects all other
+plugins with diagnostic output, requires Ethos hook checks to pass, and verifies
+Biff deployment. Normal `make check` continues to lint committed workflow and
+source artifacts.
 
 The first protected PR proved all three automated review integrations. Qodo
 completed a clean structured review on the exact head commit, Cursor Bugbot

@@ -100,11 +100,13 @@ Health and drift checks for this environment:
 
 ## Plugin and MCP drift
 
-This project adds no external or custom OpenCode plugins; it runs on OpenCode's
-built-in plugin surface only (area 8). Managed plugin drift is therefore not a
-concern — `.bin/check-dev-config.sh` fails if the project config grows a
-`plugins` key or experimental hooks — but an OpenCode upgrade can still change
-built-in plugin behavior, which is another reason to take upgrades deliberately.
+This project adds no external or custom OpenCode plugins; project behavior runs
+on OpenCode's built-in plugin surface (area 8). The workstation may also run the
+reviewed global `herdr.opencode` lifecycle integration. `make doctor` allowlists
+that exact plugin and rejects unknown or unhealthy inventory; the project
+`.bin/check-dev-config.sh` still fails if project config grows a `plugins` key or
+experimental hooks. An OpenCode upgrade can change built-in plugin behavior,
+which is another reason to take upgrades deliberately.
 MCP servers are the moving part: after an upgrade or restart, confirm the roster
 with `opencode mcp list` and that the expected set matches the eight servers the
 dev-config check pins. A restart without `direnv allow` is the most likely cause
