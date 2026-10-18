@@ -1,7 +1,7 @@
 ---
 description: Reviews user value, scope, CLI ergonomics, and release clarity; use before approving plans or changing operator-facing behavior.
 mode: subagent
-model: bifrost/bedrock/gpt-6-astra
+model: bifrost/openai/gpt-6-astra
 variant: medium
 color: "#d97706"
 steps: 24

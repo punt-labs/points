@@ -1,7 +1,7 @@
 ---
 description: Implements approved points changes completely with tests; use after architecture and acceptance criteria are settled.
 mode: subagent
-model: bifrost/bedrock/gpt-5.6-sol
+model: bifrost/openai/gpt-5.6-sol
 variant: high
 color: "#16a34a"
 steps: 64

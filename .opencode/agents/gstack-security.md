@@ -1,7 +1,7 @@
 ---
 description: Threat-models routing, credentials, configuration writes, and dependencies; use for security-sensitive changes and release review.
 mode: subagent
-model: bifrost/bedrock/gpt-6-astra
+model: bifrost/openai/gpt-6-astra
 variant: high
 color: "#dc2626"
 steps: 32

@@ -49,6 +49,9 @@ for agent in "${agents[@]}"; do
     fail "$file is disabled"
   fi
 done
+if grep -RqsE '^model: bifrost/bedrock/gpt-(5\.6|6)-' .opencode/agents; then
+  fail 'preferred OpenAI agents must use the current bifrost/openai namespace, not stale bifrost/bedrock routes'
+fi
 
 for file in .opencode/agents/gstack-*.md; do
   if awk '

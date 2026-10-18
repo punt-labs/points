@@ -106,9 +106,9 @@ Compaction, summary, and title run as hidden maintenance agents configured in
 
 | Maintenance agent | Model |
 | --- | --- |
-| Compaction | `bifrost/bedrock/gpt-5.6-terra` |
-| Summary | `bifrost/bedrock/gpt-5.6-terra` |
-| Title | `bifrost/bedrock/gpt-5.6-luna` |
+| Compaction | `bifrost/openai/gpt-5.6-terra` |
+| Summary | `bifrost/openai/gpt-5.6-terra` |
+| Title | `bifrost/openai/gpt-5.6-luna` |
 
 All three are Bedrock OpenAI-family routes, consistent with the routing policy
 that no preferred agent or maintenance role selects an Anthropic model
@@ -121,8 +121,8 @@ compaction/summary; a cheap, short model backs title.
   reserve (10% of the window, floored at 16k once the window reaches 32k). The
   defaults are well-matched to the Bedrock long-context
   maintenance model; revisit only if summaries start losing needed recent detail.
-- Keep compaction and summary on `bifrost/bedrock/gpt-5.6-terra`.
-- Set the title maintenance model to `bifrost/bedrock/gpt-5.6-luna`, correcting a
+- Keep compaction and summary on `bifrost/openai/gpt-5.6-terra`.
+- Set the title maintenance model to `bifrost/openai/gpt-5.6-luna`, correcting a
   prior global-config drift where title pointed at an Anthropic model in
   violation of the maintenance-role routing policy.
 - Treat the checkpoint as conversation state only; rely on Beads, Ethos, Git, and
@@ -137,5 +137,5 @@ template and
 transcript-independence prompt, the checkpoint wrapper, the shrink ladder on
 overflow, and tool-output trimming. Confirmed the live global maintenance-model
 assignments and corrected the title model from an Anthropic route to
-`bifrost/bedrock/gpt-5.6-luna` in `~/.config/opencode/opencode.json`; the change
+`bifrost/openai/gpt-5.6-luna` in `~/.config/opencode/opencode.json`; the change
 applies on the next service restart or config reload.

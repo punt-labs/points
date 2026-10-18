@@ -268,6 +268,9 @@ reach the Hub tool surface.
 - **A server is absent:** confirm `opencode debug config` includes the project
   document `opencode.json` and its `mcp.servers`, then restart OpenCode from the
   repository root.
+- **Inspecting loaded config:** never print or save raw `/api/config`; provider
+  substitutions may contain resolved credentials. Pipe directly to a narrow
+  `jq` projection and emit only the non-secret fields required for diagnosis.
 - **Context7 fails authentication:** confirm `CONTEXT7_API_KEY` is non-empty in
   `direnv exec . env` without printing its value, then verify the secret-store
   entry documented by the canonical `.envrc`.

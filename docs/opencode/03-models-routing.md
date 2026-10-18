@@ -30,16 +30,16 @@ selection for a run or session, not a claimed automatic failover from Bedrock.
 
 | Role | Model | Variant | Reason |
 | --- | --- | --- | --- |
-| Session default and `build` | `bifrost/bedrock/gpt-5.6-sol` | Session-selected | Strong OpenAI coding default |
-| Architect | `bifrost/bedrock/gpt-6-astra` | `high` | Deep design reasoning |
-| Product | `bifrost/bedrock/gpt-6-astra` | `medium` | Product and scope reasoning |
-| Security | `bifrost/bedrock/gpt-6-astra` | `high` | Threat analysis |
-| Implementer | `bifrost/bedrock/gpt-5.6-sol` | `high` | Coding and tool use |
-| Reviewer | `bifrost/bedrock/gpt-5.6-sol` | `high` | Correctness review |
+| Session default and `build` | `bifrost/openai/gpt-5.6-sol` | Session-selected | Strong OpenAI coding default |
+| Architect | `bifrost/openai/gpt-6-astra` | `high` | Deep design reasoning |
+| Product | `bifrost/openai/gpt-6-astra` | `medium` | Product and scope reasoning |
+| Security | `bifrost/openai/gpt-6-astra` | `high` | Threat analysis |
+| Implementer | `bifrost/openai/gpt-5.6-sol` | `high` | Coding and tool use |
+| Reviewer | `bifrost/openai/gpt-5.6-sol` | `high` | Correctness review |
 | QA worker | `bifrost/bedrock/gpt-oss-120b` | `medium` | OpenAI open-weight trial; never an Ethos evaluator |
-| Researcher | `bifrost/bedrock/gpt-5.6-terra` | `medium` | Reliable Code Mode and MCP schemas |
-| Title | `bifrost/bedrock/gpt-5.6-luna` | None | Cheap, short maintenance request |
-| Compaction and summary | `bifrost/bedrock/gpt-5.6-terra` | None | Reliable long-context maintenance |
+| Researcher | `bifrost/openai/gpt-5.6-terra` | `medium` | Reliable Code Mode and MCP schemas |
+| Title | `bifrost/openai/gpt-5.6-luna` | None | Cheap, short maintenance request |
+| Compaction and summary | `bifrost/openai/gpt-5.6-terra` | None | Reliable long-context maintenance |
 
 The root model cannot retain a variant in OpenCode V2. Agent model references
 retain their configured variants. Built-in `build`, `plan`, `general`, and

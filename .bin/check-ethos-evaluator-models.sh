@@ -7,7 +7,7 @@ for evaluator in "${evaluators[@]}"; do
   file=".opencode/agents/${evaluator}.md"
   model=$(sed -n 's/^model: //p' "$file")
   case "$model" in
-    bifrost/bedrock/gpt-5.6-*|bifrost/bedrock/gpt-6-*) ;;
+    bifrost/openai/gpt-5.6-*|bifrost/openai/gpt-6-*) ;;
     *)
       printf 'Ethos evaluator %s must use a preferred Bedrock OpenAI model, got %s\n' \
         "$evaluator" "${model:-<missing>}" >&2
