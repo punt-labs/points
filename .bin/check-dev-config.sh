@@ -63,6 +63,15 @@ for file in .opencode/agents/gstack-*.md; do
     fail "$file has wildcard shell access"
   fi
 done
+if grep -Rqs 'resource: "make \*"' .opencode/agents/gstack-*.md; then
+  fail 'gstack agents must not have wildcard make access; inline make recipes bypass the shell allowlist'
+fi
+bad_make=$(grep -h 'resource: "make' .opencode/agents/gstack-*.md |
+  grep -Ev '^    resource: "make( (build|check|check-dev|coverage|spec|test))?"$' || true)
+test -z "$bad_make" || fail "gstack make allowlist contains unapproved forms: $bad_make"
+if grep -RqsE 'resource: "git (add|commit|push)' .opencode/agents/gstack-*.md; then
+  fail 'gstack agents must not mutate Git; the build leader owns staging, commits, and pushes'
+fi
 
 ./.bin/check-ethos-evaluator-models.sh
 

@@ -38,6 +38,9 @@ the decision to the operator. This ordering prevents a worker's terminal
 reflection from making later evaluator findings impossible to correct. Accept
 only observable evidence. Keep result, evaluator reflection, and closure in
 Ethos; do not create a second checks file.
+Specialists also do not stage, commit, or push. The leader reviews and commits
+accepted edits. Treat `make --eval`, `make -f`, inline recipes, or similar
+indirection around denied shell commands as a mission failure.
 
 ## Prerequisites
 

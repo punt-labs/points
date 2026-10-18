@@ -277,8 +277,10 @@ worker-authored `stop` reflection would preempt correction if the evaluator late
 finds a defect and is therefore a workflow failure, not a harmless ordering
 difference.
 
-Workers commit logical steps and run `make check` before each commit. The leader
-owns branch creation, pushes, PRs, review threads, and merge operations.
+Workers return saved edits, structured results, and exact check evidence. They do
+not stage, commit, push, or otherwise mutate Git. The leader reviews the diff and
+tool trace, runs the required checks independently, and owns branch creation,
+staging, commits, pushes, PRs, review threads, and merges.
 For product-slice implementation, workers get the thinnest real path running
 early and rerun it whenever another seam is connected. Do not accumulate a large
 body of code that has only compiled or passed isolated tests. Compilation,
@@ -301,6 +303,14 @@ an evaluator's confidence are not evidence by themselves. Missing evidence is
 
 Ethos owns the durable contract, worker result, evaluator reflection, and audit
 log. The leader does not copy them into a second checks file.
+
+Specialist shell allowlists are workflow guardrails, not a security sandbox. A
+write-enabled worker can change build/test inputs that approved commands execute.
+Use isolated worktrees for writers, keep credentials out of prompts and output,
+inspect tool traces for permission evasions, and independently review all edits
+before the leader commits them. `make --eval`, `make -f`, inline recipes, and
+other indirection that executes commands outside approved canonical targets are
+permission bypasses and fail the mission.
 
 OpenCode, Beads, Ethos, Circuit, Git, and GitHub retain their own identifiers and
 state authority. Correlate them through OpenCode session metadata and explicit

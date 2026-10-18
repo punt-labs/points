@@ -48,8 +48,8 @@ For every product-slice Bead, record:
 - **Execution evidence:** commands and results. Compilation, mocks, snapshots,
   or worker confidence alone do not prove integration.
 - **First-running checkpoint:** get the thinnest path green early; report the
-  first end-to-end green commit, current command, last successful run, and any
-  bypassed seam.
+  current working-tree state, command, last successful run, and any bypassed
+  seam. After review, the leader creates the corresponding green commit.
 - **Merge boundary:** one reversible PR, integrated before widening the feature.
 
 Supporting module, documentation, design, and configuration Beads use
