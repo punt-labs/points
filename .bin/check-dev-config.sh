@@ -101,6 +101,8 @@ grep -Fq 'Project specialists intentionally lack Ethos mutation access' docs/WOR
   fail 'docs/WORKFLOW.md must assign Ethos persistence to the leader'
 test -x .bin/extract-subagent-result.sh ||
   fail 'mission result extractor must exist and be executable'
+test -x .bin/test-extract-subagent-result.sh ||
+  fail 'mission result extractor regression test must exist and be executable'
 grep -Fq 'extract-subagent-result.sh' .opencode/skills/ethos-mission/SKILL.md ||
   fail 'ethos-mission skill must require session/mission result correlation'
 

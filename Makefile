@@ -28,6 +28,7 @@ check: lint test markdownlint workflows evaluator-models ## Run every quality ga
 .PHONY: check-dev
 check-dev: evaluator-models ## Validate committed development-environment configuration
 	./.bin/check-dev-config.sh
+	./.bin/test-extract-subagent-result.sh
 
 .PHONY: test
 test: ## Run race-enabled tests without cache

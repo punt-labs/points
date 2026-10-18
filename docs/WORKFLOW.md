@@ -280,8 +280,10 @@ difference.
 The leader correlates every persisted artifact to both the child session and the
 mission contract. For long handoffs recovered from OpenCode, use
 `.bin/extract-subagent-result.sh`; it selects the latest completed assistant text
-by timestamp and refuses a result without the exact expected mission and round
-metadata.
+by timestamp and refuses a result unless the exported session ID/agent and the
+artifact's single leading `ethos-result` mission/round/author envelope match the
+dispatch record. Include that exact envelope requirement in every worker and
+evaluator prompt.
 Array position, similar session IDs, and prose references to another mission are
 not identity evidence.
 
