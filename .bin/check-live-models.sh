@@ -35,6 +35,11 @@ opencode debug agents 2>/dev/null | jq -r '.[] | select(.model != null) | [.id, 
 # print the rest of /api/config/debug config because provider settings may contain
 # resolved credentials.
 opencode debug config 2>/dev/null | jq -r '
+  def model_ref:
+    if type == "string" then .
+    elif type == "object" then (.providerID + "/" + (.model // .id))
+    else empty
+    end;
   reduce .[] as $source (
     {default: null, title: null, compaction: null, summary: null};
     .default = ($source.info.model // .default)
@@ -44,7 +49,7 @@ opencode debug config 2>/dev/null | jq -r '
   )
   | to_entries[]
   | select(.value != null)
-  | [.key, (.value.providerID + "/" + .value.model)]
+  | [.key, (.value | model_ref)]
   | @tsv
 ' >"$effective"
 
