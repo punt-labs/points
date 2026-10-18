@@ -76,7 +76,8 @@ cleanup() {
   fi
   worktree=''
 }
-trap cleanup EXIT HUP INT TERM
+trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
 
 worktree=$(mktemp -d "$worktree_parent/points-agent-worktree.XXXXXX")
 rmdir "$worktree"
