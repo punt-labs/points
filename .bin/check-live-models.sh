@@ -17,7 +17,8 @@ catalog=$(mktemp "$scratch/points-opencode-models.XXXXXX")
 upstream=$(mktemp "$scratch/points-bifrost-models.XXXXXX")
 runtime=$(mktemp "$scratch/points-runtime-agents.XXXXXX")
 effective=$(mktemp "$scratch/points-effective-models.XXXXXX")
-trap 'rm -f "$catalog" "$upstream" "$runtime" "$effective"' EXIT
+basefile=$(mktemp "$scratch/points-effective-bifrost.XXXXXX")
+trap 'rm -f "$catalog" "$upstream" "$runtime" "$effective" "$basefile"' EXIT
 
 opencode models >"$catalog"
 opencode debug agents 2>/dev/null | jq -r '.[] | select(.model != null) | [.id, (.model.providerID + "/" + .model.id)] | @tsv' >"$runtime"
@@ -39,7 +40,12 @@ opencode debug config 2>/dev/null | jq -r '
   | @tsv
 ' >"$effective"
 
-base=$(jq -r '.providers.bifrost.settings.baseURL // empty' "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/opencode.json")
+# Resolve the effective Bifrost URL from the same loaded source order as the
+# model assignments, while projecting only this non-secret field.
+opencode debug config 2>/dev/null | jq -r '
+  reduce .[] as $source (null; $source.info.providers.bifrost.settings.baseURL // .) // empty
+' >"$basefile"
+base=$(cat "$basefile")
 test -n "$base" || fail 'global Bifrost baseURL is missing'
 root=${base%/openai/v1}
 curl -fsS --max-time 30 -H "Authorization: Bearer $BIFROST_VK" "$root/v1/models" \
