@@ -86,6 +86,10 @@ grep -Fq 'Use the `incremental-delivery` skill before decomposing epics' AGENTS.
   fail 'AGENTS.md must require incremental-delivery for feature decomposition'
 grep -Fq 'Use the `incremental-delivery` skill before creating or restructuring a feature' docs/WORKFLOW.md ||
   fail 'docs/WORKFLOW.md must define the incremental-delivery gate'
+grep -Fq 'The worker submits the round result only;' .opencode/skills/ethos-mission/SKILL.md ||
+  fail 'ethos-mission skill must reserve reflections for independent evaluation'
+grep -Fq 'the worker never reflects on its own result' docs/WORKFLOW.md ||
+  fail 'docs/WORKFLOW.md must assign round reflections to the evaluator'
 
 for skill in $expected_skills; do
   file=".opencode/skills/${skill}/SKILL.md"

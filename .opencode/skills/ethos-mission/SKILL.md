@@ -28,8 +28,13 @@ Build the contract from the active Bead and cited artifacts:
 Use the Ethos MCP mission tool when available. Use `ethos mission --help` for
 CLI-only operations rather than copying command syntax. After dispatch, spawn
 the named OpenCode subagent separately, verify it started, and have it read the
-stored contract. Accept only observable evidence. Record results, evaluator
-verdict, reflection, and closure in Ethos; do not create a second checks file.
+stored contract. The worker submits the round result only; it must not submit the
+reflection. After independent review, the evaluator owns the round reflection:
+`stop` means the leader may accept and close, `continue`/`pivot` permits a
+correction advance, and `escalate` returns the decision to the operator. This
+ordering prevents a worker's terminal reflection from making later evaluator
+findings impossible to correct. Accept only observable evidence. Keep result,
+evaluator reflection, and closure in Ethos; do not create a second checks file.
 
 ## Prerequisites
 
