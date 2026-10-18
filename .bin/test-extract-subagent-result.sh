@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root=$(mktemp -d "${TMPDIR:-$PWD/.tmp/opencode}/points-extract-test.XXXXXX")
-trap 'rm -rf "$root"' EXIT HUP INT TERM
+scratch=${TMPDIR:-$PWD/.tmp/opencode}
+mkdir -p "$scratch"
+root=$(mktemp -d "$scratch/points-extract-test.XXXXXX")
+trap 'rm -rf "$root"' EXIT
+trap 'exit 1' HUP INT TERM
 mkdir -p "$root/bin"
 cat >"$root/bin/opencode" <<'SH'
 #!/usr/bin/env bash
