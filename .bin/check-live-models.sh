@@ -10,6 +10,14 @@ command -v opencode >/dev/null || fail 'opencode is not installed'
 command -v jq >/dev/null || fail 'jq is not installed'
 command -v curl >/dev/null || fail 'curl is not installed'
 test -n "${BIFROST_VK:-}" || fail 'BIFROST_VK is not loaded; run through direnv'
+case "$BIFROST_VK" in
+  sk-bf-*) ;;
+  *) fail 'BIFROST_VK has an unexpected format' ;;
+esac
+vk_body=${BIFROST_VK#sk-bf-}
+case "$vk_body" in
+  ''|*[!A-Za-z0-9_-]*) fail 'BIFROST_VK has an unexpected format' ;;
+esac
 
 scratch=${TMPDIR:-$PWD/.tmp/opencode}
 mkdir -p "$scratch"
@@ -48,7 +56,10 @@ opencode debug config 2>/dev/null | jq -r '
 base=$(cat "$basefile")
 test -n "$base" || fail 'global Bifrost baseURL is missing'
 root=${base%/openai/v1}
-curl -fsS --max-time 30 -H "Authorization: Bearer $BIFROST_VK" "$root/v1/models" \
+# Feed the credential through curl's stdin config so it never appears in the
+# process argument list or command diagnostics.
+printf 'header = "Authorization: Bearer %s"\n' "$BIFROST_VK" \
+  | curl --config - -fsS --max-time 30 "$root/v1/models" \
   | jq -r '.data[]?.id' >"$upstream" \
   || fail 'could not fetch authenticated Bifrost model catalog'
 
