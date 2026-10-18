@@ -24,8 +24,32 @@ oc() {
 }
 
 tree_digest() {
-  tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
-    --exclude=.git -C "$worktree" -cf - . | sha256sum | awk '{print $1}'
+  python3 -I - "$worktree" <<'PY'
+import hashlib
+import os
+import stat
+import sys
+
+root = os.path.realpath(sys.argv[1])
+digest = hashlib.sha256()
+for current, dirs, files in os.walk(root, topdown=True, followlinks=False):
+    dirs[:] = sorted(name for name in dirs if name != ".git")
+    for name in dirs + sorted(files):
+        path = os.path.join(current, name)
+        relative = os.path.relpath(path, root).encode()
+        metadata = os.lstat(path)
+        digest.update(relative + b"\0" + str(stat.S_IMODE(metadata.st_mode)).encode() + b"\0")
+        if stat.S_ISLNK(metadata.st_mode):
+            digest.update(b"L" + os.readlink(path).encode() + b"\0")
+        elif stat.S_ISREG(metadata.st_mode):
+            digest.update(b"F")
+            with open(path, "rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+        else:
+            digest.update(b"D")
+print(digest.hexdigest())
+PY
 }
 
 cleanup_session() {
