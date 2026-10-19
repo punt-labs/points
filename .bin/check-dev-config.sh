@@ -73,6 +73,13 @@ if grep -RqsE 'resource: "git (add|commit|push)' .opencode/agents/gstack-*.md; t
   fail 'gstack agents must not mutate Git; the build leader owns staging, commits, and pushes'
 fi
 
+python3 ./.bin/check-agent-permissions.py .opencode/agents/gstack-implementer.md ||
+  fail 'gstack-implementer permission policy differs from the complete approved rule set'
+grep -Fq 'you may not authorize or direct' .opencode/agents/gstack-reviewer.md ||
+  fail 'gstack-reviewer must not direct development-harness changes'
+grep -Fq 'reviewer recommendation alone is never authority' docs/WORKFLOW.md ||
+  fail 'docs/WORKFLOW.md must reserve harness changes to leader/operator decisions'
+
 ./.bin/check-ethos-evaluator-models.sh
 
 expected_mcp='beadle biff brave-search context7 ethos lux quarry vox'
