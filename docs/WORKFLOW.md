@@ -277,6 +277,24 @@ worker-authored `stop` reflection would preempt correction if the evaluator late
 finds a defect and is therefore a workflow failure, not a harmless ordering
 difference.
 
+Specialists operate inside the active OpenCode workflow. A specialist may
+recommend a worker/evaluator assignment or correction path, but cannot authorize
+or direct a switch to Claude Code, Codex, Pi, or another harness. Harness changes
+are leader/operator decisions and require an explicit workflow decision; a
+reviewer recommendation alone is never authority.
+
+Shell permissions remain per-resource workflow guardrails, not complete-command
+or filesystem containment. OpenCode evaluates parsed command resources and the
+working directory separately: independently allowed commands can be chained,
+and `external_directory` access permits another working directory. Mission
+write sets, exact prompts, tool-trace review, and disposable-worktree evidence
+remain mandatory; do not describe an allowlist entry as enforcing script
+identity, repository root, or an entire raw shell string.
+On Linux the permission matcher also normalizes backslashes to slashes before
+matching, while Bash interprets unquoted backslashes itself. Treat a backslash
+variant as ambiguous and reject it during trace review; a literal slash-form
+resource cannot mechanically distinguish that spelling.
+
 The leader correlates every persisted artifact to both the child session and the
 mission contract. For long handoffs recovered from OpenCode, use
 `.bin/extract-subagent-result.sh`; it selects the latest completed assistant text
