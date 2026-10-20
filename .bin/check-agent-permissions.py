@@ -9,16 +9,6 @@ import sys
 from pathlib import Path
 
 
-SYNTHETIC_COMPILE = (
-    "python3 -m py_compile "
-    ".tmp/mission032/synthetic-round1/compose.py "
-    ".tmp/mission032/synthetic-round1/safety.py "
-    ".tmp/mission032/synthetic-round1/run.py "
-    ".tmp/mission032/synthetic-round1/diagnostic_addendum.py "
-    ".tmp/mission032/synthetic-round1/fixtures.py "
-    ".tmp/mission032/synthetic-round1/regressions_round2.py"
-)
-
 APPROVED_RULES = [
     ("*", "*", "deny"),
     ("read", "*", "allow"),
@@ -37,20 +27,10 @@ APPROVED_RULES = [
     ("shell", "make check-dev", "allow"),
     ("shell", "make coverage", "allow"),
     ("shell", "make spec", "allow"),
+    ("shell", "make spec-prob", "allow"),
     ("shell", "make test", "allow"),
     ("shell", "./points *", "allow"),
     ("shell", "fuzz *", "allow"),
-    (
-        "shell",
-        "python3 -B .tmp/mission032/synthetic-round1/regressions_round2.py",
-        "allow",
-    ),
-    (
-        "shell",
-        "python3 -B .tmp/mission032/synthetic-round1/regressions_round2.py --verify",
-        "allow",
-    ),
-    ("shell", SYNTHETIC_COMPILE, "allow"),
     ("external_directory", "*", "allow"),
     ("edit", "*", "allow"),
 ]
@@ -223,6 +203,7 @@ def self_test(text: str) -> None:
         add_rule(text, "shell", "python3 ?", "allow"),
         add_rule(text, "shell", "python3 -c 'print(1)'", "allow"),
         add_rule(text, "shell", "python3 .tmp/other.py", "allow"),
+        add_rule(text, "shell", "make --eval 'escape: ; true' escape", "allow"),
         add_rule(text, "shell", "make check", "deny"),
         add_rule(text, "*", "*", "allow"),
         add_rule(text, "s*", "python3*", "allow"),

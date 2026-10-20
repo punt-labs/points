@@ -6,6 +6,7 @@ PKG     := ./...
 VERSION := $(or $(shell git describe --tags --always 2>/dev/null | sed 's/^v//'),dev)
 LDFLAGS := -X main.version=$(VERSION)
 PREFIX  ?= $(HOME)/.local
+PROB    ?= $(HOME)/Applications/ProB/probcli
 
 GOLANGCI_LINT_VERSION := v2.13.1
 ACTIONLINT_VERSION := v1.7.7
@@ -123,6 +124,16 @@ doctor: build check-dev ## Verify the CLI and local OpenCode development service
 .PHONY: spec
 spec: ## Type-check the target Z specification
 	fuzz docs/spec/points.target.spec.tex
+
+.PHONY: spec-prob
+spec-prob: spec ## Check target Z assertions with ProB
+	@test -x "$(PROB)" || { echo "probcli not found at $(PROB) — set PROB=/path/to/probcli"; exit 1; }
+	@test ! -e docs/spec/points.target.spec.fuzz && test ! -L docs/spec/points.target.spec.fuzz || { echo 'refusing to replace pre-existing docs/spec/points.target.spec.fuzz'; exit 1; }
+	@set -e; \
+	  cleanup() { rm -f docs/spec/points.target.spec.fuzz; }; \
+	  trap cleanup EXIT; \
+	  trap 'exit 129' HUP; trap 'exit 130' INT; trap 'exit 143' TERM; \
+	  "$(PROB)" docs/spec/points.target.spec.tex -cbc_assertions -strict
 
 .PHONY: help
 help: ## Show available targets
