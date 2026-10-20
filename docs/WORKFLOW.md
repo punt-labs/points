@@ -406,6 +406,10 @@ for fuzz type checking and `make spec-prob` for the baseline ProB assertion
 check. Add further formal workflows as named Make targets before granting agents
 direct access to model-checker or scenario-runner commands. Tests derived from
 changed TTF partitions land with the implementation. See `docs/TESTPLAN.md`.
+`make spec-prob` handles normal completion, checker failure, Make termination,
+and terminal-style process-group interruption. Sending a synthetic signal only
+to the Make PID while deliberately leaving its foreground process group running
+is outside the cancellation contract; callers must signal the foreground group.
 
 ## Completion Conditions
 
