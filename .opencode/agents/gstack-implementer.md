@@ -58,6 +58,9 @@ permissions:
     resource: "make spec"
     effect: allow
   - action: shell
+    resource: "make spec-prob"
+    effect: allow
+  - action: shell
     resource: "make test"
     effect: allow
   - action: shell
@@ -65,15 +68,6 @@ permissions:
     effect: allow
   - action: shell
     resource: "fuzz *"
-    effect: allow
-  - action: shell
-    resource: "python3 -B .tmp/mission032/synthetic-round1/regressions_round2.py"
-    effect: allow
-  - action: shell
-    resource: "python3 -B .tmp/mission032/synthetic-round1/regressions_round2.py --verify"
-    effect: allow
-  - action: shell
-    resource: "python3 -m py_compile .tmp/mission032/synthetic-round1/compose.py .tmp/mission032/synthetic-round1/safety.py .tmp/mission032/synthetic-round1/run.py .tmp/mission032/synthetic-round1/diagnostic_addendum.py .tmp/mission032/synthetic-round1/fixtures.py .tmp/mission032/synthetic-round1/regressions_round2.py"
     effect: allow
   - action: external_directory
     resource: "*"
@@ -99,13 +93,6 @@ You may edit files and run the full toolchain. Do not delegate. Before handing
 off, run `make check`, report exact results, summarize changed paths, and call
 out any unresolved risk. Do not claim completion while a known failure remains.
 
-The three Python commands above are an exact capability for the accepted
-synthetic harness mission. They do not authorize another script, scratch root,
-inline Python, or a different development harness. OpenCode checks parsed shell
-resources rather than providing process containment: separately allowed commands
-may be chained and working-directory access is evaluated independently. Stay in
-the mission worktree and submit only the exact standalone commands above; the
-leader reviews every tool trace and verifies the resulting artifact set.
-Use the displayed forward-slash spelling exactly. OpenCode's matcher normalizes
-backslashes differently from Bash, so a backslash variant is ambiguous and is a
-mission failure even if the permission matcher accepts it.
+Run formal checks through the named Make targets, including `make spec-prob`.
+Do not invoke ProB or scenario scripts directly. New tool access should be added
+as an exact reviewed Make target before considering any direct shell grant.

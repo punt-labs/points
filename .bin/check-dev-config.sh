@@ -67,7 +67,7 @@ if grep -Rqs 'resource: "make \*"' .opencode/agents/gstack-*.md; then
   fail 'gstack agents must not have wildcard make access; inline make recipes bypass the shell allowlist'
 fi
 bad_make=$(grep -h 'resource: "make' .opencode/agents/gstack-*.md |
-  grep -Ev '^    resource: "make( (build|check|check-dev|coverage|spec|test))?"$' || true)
+  grep -Ev '^    resource: "make( (build|check|check-dev|coverage|spec|spec-prob|test))?"$' || true)
 test -z "$bad_make" || fail "gstack make allowlist contains unapproved forms: $bad_make"
 if grep -RqsE 'resource: "git (add|commit|push)' .opencode/agents/gstack-*.md; then
   fail 'gstack agents must not mutate Git; the build leader owns staging, commits, and pushes'
@@ -112,6 +112,9 @@ test -x .bin/test-extract-subagent-result.sh ||
   fail 'mission result extractor regression test must exist and be executable'
 grep -Fq 'extract-subagent-result.sh' .opencode/skills/ethos-mission/SKILL.md ||
   fail 'ethos-mission skill must require session/mission result correlation'
+test -x .bin/test-spec-prob-cleanup.sh ||
+  fail 'spec-prob cleanup regression test must exist and be executable'
+./.bin/test-spec-prob-cleanup.sh
 
 for skill in $expected_skills; do
   file=".opencode/skills/${skill}/SKILL.md"
