@@ -6,7 +6,7 @@
 
 \begin{document}
 
-\title{A Formal Specification of \texttt{model-provider} (target state: a routing tool, multi-source)}
+\title{A Formal Specification of \texttt{points} (target routing state and Slice 1 refinement)}
 \author{Punt Labs}
 \maketitle
 
@@ -14,12 +14,12 @@
 
 This is the \emph{target} specification --- the robust design a from-scratch
 re-implementation targets --- paired with
-\texttt{model-provider.current.spec.tex}, which models the tool as built today.
+\texttt{model-provider.current.spec.tex}, which models the predecessor.
 
 The organising idea, reached by separating two axes the combined tool conflated:
 \emph{routing} (how a request reaches an upstream --- base URL, auth, which
 source) is session-global per harness; \emph{model-choice} (which model serves a
-request) is per-agent, user-authored, and out of scope. \texttt{model-provider}
+request) is per-agent, user-authored, and out of scope. \texttt{points}
 owns routing. Its whole job is: the operator picks, per harness, a \emph{source}
 to route through and a default model, and the tool writes exactly that route so
 the chosen model --- and any model any agent later names --- reaches the upstream
@@ -28,7 +28,7 @@ the operator picked.
 \textbf{The user picks the route.} There is no tool-defined precedence and no
 ban on overlap: if two sources both serve a provider, the operator simply routes
 a given harness through whichever source they prefer. \emph{That choice is the
-entire tool.} The managed state is therefore a per-harness map from harness to
+	entire tool.} The managed state is therefore a per-harness map from harness to
 source, set by the operator, never derived.
 
 \textbf{Multiple sources.} One operator may have a single source (a gateway like
@@ -47,29 +47,47 @@ provider. A provider is the upstream a source routes to (\texttt{anthropic},
 source is a configured route target: a gateway (Bifrost, Envoy, AgentGateway) or
 a direct vendor/aggregator endpoint.
 
+% POINTS-CHECK BEGIN types.routing-carriers type
 \begin{zed}
-  [ModelId, Provider, Source]
+	[ModelId, Provider, Source]
 \end{zed}
+% POINTS-CHECK END types.routing-carriers
+
+% POINTS-CHECK BEGIN types.transaction-carriers type
+\begin{zed}
+	[JSONPointer, Path, Identity, Owner, Mode, ByteString, Delta, FileImage]
+\end{zed}
+% POINTS-CHECK END types.transaction-carriers
 
 The four harnesses.
 
 \begin{zed}
-  Harness ::= claudecode | codex | pi | opencode
+	Harness ::= claudecode | codex | pi | opencode
 \end{zed}
 
 The protocol each harness speaks. Claude Code speaks Anthropic; the other three
 speak OpenAI. A source must expose a harness's protocol to carry it.
 
 \begin{zed}
-  Protocol ::= anthropic | openai
+	Protocol ::= anthropic | openai
 \end{zed}
 
 Auth modes a source may accept: a per-host virtual key / API key ($vkauth$), or
 the operator's Claude subscription OAuth ($subauth$).
 
 \begin{zed}
-  AuthMode ::= vkauth | subauth
+	AuthMode ::= vkauth | subauth
 \end{zed}
+
+Boolean and completeness values are made finite explicitly so that the bounded
+model is executable rather than relying on an implementation-language type.
+
+% POINTS-CHECK BEGIN types.bool type
+\begin{zed}
+	Bool ::= yes | no \\
+	ContentState ::= partial | complete
+\end{zed}
+% POINTS-CHECK END types.bool
 
 Claude Code's built-in model-alias tiers --- the Agent tool's
 \texttt{opus|sonnet|haiku|fable} knobs. Not user agent definitions; built-in
@@ -77,7 +95,7 @@ alias slots the tool sets so a model-less spawn resolves to a routable id. A
 fixed, finite set.
 
 \begin{zed}
-  Tier ::= opus | sonnet | haiku | fable
+	Tier ::= opus | sonnet | haiku | fable
 \end{zed}
 
 \section{Harness and model properties}
@@ -85,12 +103,12 @@ fixed, finite set.
 Which protocol each harness speaks.
 
 \begin{axdef}
-  speaks : Harness \fun Protocol
-\where
-  speaks = \{ claudecode \mapsto anthropic, \\
-  \t1         codex \mapsto openai, \\
-  \t1         pi \mapsto openai, \\
-  \t1         opencode \mapsto openai \}
+	speaks : Harness \fun Protocol
+	\where
+	speaks = \{ claudecode \mapsto anthropic, \\
+	\t1         codex \mapsto openai, \\
+	\t1         pi \mapsto openai, \\
+	\t1         opencode \mapsto openai \}
 \end{axdef}
 
 Which harnesses canonicalize the configured id (strip the provider prefix),
@@ -98,9 +116,9 @@ losing the routing information unless an override restores the verbatim id. Only
 Claude Code.
 
 \begin{axdef}
-  canonicalizes : \power Harness
-\where
-  canonicalizes = \{ claudecode \}
+	canonicalizes : \power Harness
+	\where
+	canonicalizes = \{ claudecode \}
 \end{axdef}
 
 Which harnesses present a native model picker that validates against a
@@ -108,16 +126,16 @@ tool-written list (so the tool must populate it). pi and opencode do; codex and
 Claude Code do not.
 
 \begin{axdef}
-  showsPicker : \power Harness
-\where
-  showsPicker = \{ pi, opencode \}
+	showsPicker : \power Harness
+	\where
+	showsPicker = \{ pi, opencode \}
 \end{axdef}
 
 Every model id carries a provider --- the only thing routing depends on, since a
 source fans out by provider. Total, so there are no partial-application gaps.
 
 \begin{axdef}
-  providerOf : ModelId \fun Provider
+	providerOf : ModelId \fun Provider
 \end{axdef}
 
 \section{The source contract}
@@ -130,14 +148,14 @@ least one provider, exposes at least one protocol, and accepts at least one auth
 mode.
 
 \begin{axdef}
-  srcServes : Source \fun \power Provider \\
-  srcProtocols : Source \fun \power Protocol \\
-  srcAuth : Source \fun \power AuthMode
-\where
-  \forall s : Source @ \\
-  \t1 srcServes~s \neq \emptyset \land \\
-  \t1 srcProtocols~s \neq \emptyset \land \\
-  \t1 srcAuth~s \neq \emptyset
+	srcServes : Source \fun \power Provider \\
+	srcProtocols : Source \fun \power Protocol \\
+	srcAuth : Source \fun \power AuthMode
+	\where
+	\forall s : Source @ \\
+	\t1 srcServes~s \neq \emptyset \land \\
+	\t1 srcProtocols~s \neq \emptyset \land \\
+	\t1 srcAuth~s \neq \emptyset
 \end{axdef}
 
 The universe contains at least one \emph{Anthropic-capable} source with a
@@ -150,13 +168,13 @@ Anthropic source simply never route Claude Code; this witness does not oblige
 them to.
 
 \begin{axdef}
-  anthropicWitness : Source \\
-  anthropicModel : ModelId
-\where
-  anthropic \in srcProtocols~anthropicWitness \\
-  openai \in srcProtocols~anthropicWitness \\
-  srcAuth~anthropicWitness = \{ vkauth, subauth \} \\
-  providerOf~anthropicModel \in srcServes~anthropicWitness
+	anthropicWitness : Source \\
+	anthropicModel : ModelId
+	\where
+	anthropic \in srcProtocols~anthropicWitness \\
+	openai \in srcProtocols~anthropicWitness \\
+	srcAuth~anthropicWitness = \{ vkauth, subauth \} \\
+	providerOf~anthropicModel \in srcServes~anthropicWitness
 \end{axdef}
 
 The picker pattern: the set of ids the operator's picker expression matches (a
@@ -165,12 +183,23 @@ pattern intersected with what is routable on that harness's source --- a view,
 never a constraint on what may be routed.
 
 \begin{axdef}
-  matchesPattern : \power ModelId
+	matchesPattern : \power ModelId
 \end{axdef}
 
-\section{Configuration state}
+The selectable catalog is stricter than provider routability.  This distinction
+prevents a same-provider but unsupported identifier from entering managed
+configuration merely because its provider is served.
 
-The managed state is routing, per harness, plus the fixtures the one
+\begin{axdef}
+	selectableModels : Source \fun \power ModelId
+	\where
+	\forall s : Source @ \forall m : selectableModels~s @
+	providerOf~m \in srcServes~s
+\end{axdef}
+
+\section{Raw, coherent, and observed configuration}
+
+The raw managed projection is routing, per harness, plus the fixtures the one
 canonicalizing harness needs. $configured$ is the set of sources the operator
 has set up. $routeVia$ maps each \emph{routed} harness to the source the operator
 chose for it; its domain is exactly the harnesses currently on a managed route
@@ -188,34 +217,81 @@ The invariant folds in \emph{all} route coherence, so every reachable state
 --- not merely states an operation happened to build --- is checked by the model
 checker:
 
+Unlike the former model, raw state carries no coherence invariant.  It can
+therefore represent malformed and partially managed external observations and
+make verification failures reachable.  $registered$ is only the certified
+managed registration projection; it is not every native declaration preserved
+in an OpenCode document.  Registration and the optional picker view are
+different concerns.
+
+\begin{schema}{RawConfig}
+	configured : \power Source \\
+	routeVia : Harness \pfun Source \\
+	model : Harness \pfun ModelId \\
+	hauth : Harness \pfun AuthMode \\
+	override : \power Harness \\
+	aliases : Tier \pfun ModelId \\
+	registered : Harness \pfun \power ModelId \\
+	shown : Harness \pfun \power ModelId
+\end{schema}
+
+\begin{axdef}
+	needsRegistration : \power Harness
+	\where
+	needsRegistration = \{ pi, opencode \}
+\end{axdef}
+
+The coherent subtype is the only place that assumes routing invariants.  In
+particular subscription auth belongs only to Claude Code, not merely to any
+source which happens to expose the Anthropic protocol.
+
 \begin{schema}{Config}
-  configured : \power Source \\
-  routeVia : Harness \pfun Source \\
-  model : Harness \pfun ModelId \\
-  hauth : Harness \pfun AuthMode \\
-  override : \power Harness \\
-  aliases : Tier \pfun ModelId \\
-  shown : Harness \pfun \power ModelId
-\where
-  \dom model = \dom routeVia \\
-  \dom hauth = \dom routeVia \\
-  \ran routeVia \subseteq configured \\
-  override \subseteq canonicalizes \cap \dom routeVia \\
-  \dom shown = showsPicker \cap \dom routeVia \\
-  ( \forall h : \dom routeVia @ \\
-  \t1 speaks~h \in srcProtocols~(routeVia~h) \land \\
-  \t1 providerOf~(model~h) \in srcServes~(routeVia~h) \land \\
-  \t1 hauth~h \in srcAuth~(routeVia~h) \land \\
-  \t1 ( h \in canonicalizes \implies h \in override ) \land \\
-  \t1 ( hauth~h = subauth \implies anthropic \in srcProtocols~(routeVia~h) ) ) \\
-  ( claudecode \in \dom routeVia \implies \\
-  \t1 ( \dom aliases = \{ opus, sonnet, haiku, fable \} \land \\
-  \t1   ( \forall t : \dom aliases @ \\
-  \t2     providerOf~(aliases~t) \in srcServes~(routeVia~claudecode) ) ) ) \\
-  ( claudecode \notin \dom routeVia \implies aliases = \emptyset ) \\
-  ( \forall h : \dom shown @ \\
-  \t1 ( \forall m : shown~h @ \\
-  \t2 m \in matchesPattern \land providerOf~m \in srcServes~(routeVia~h) ) )
+	RawConfig
+	\where
+	\dom model = \dom routeVia \\
+	\dom hauth = \dom routeVia \\
+	\ran routeVia \subseteq configured \\
+	override \subseteq canonicalizes \cap \dom routeVia \\
+	\dom registered = needsRegistration \cap \dom routeVia \\
+	\dom shown = showsPicker \cap \dom routeVia \\
+	( \forall h : \dom routeVia @ \\
+	\t1 speaks~h \in srcProtocols~(routeVia~h) \land \\
+	\t1 providerOf~(model~h) \in srcServes~(routeVia~h) \land \\
+	\t1 model~h \in selectableModels~(routeVia~h) \land \\
+	\t1 hauth~h \in srcAuth~(routeVia~h) \land \\
+	\t1 ( h \in canonicalizes \implies h \in override ) \land \\
+	\t1 ( hauth~h = subauth \implies h = claudecode ) ) \\
+	( claudecode \in \dom routeVia \implies \\
+	\t1 ( \dom aliases = \{ opus, sonnet, haiku, fable \} \land \\
+	\t1   ( \forall t : \dom aliases @ \\
+	\t2     providerOf~(aliases~t) \in srcServes~(routeVia~claudecode) ) ) ) \\
+	( claudecode \notin \dom routeVia \implies aliases = \emptyset ) \\
+	( \forall h : \dom shown @ \\
+	\t1 ( \forall m : shown~h @ \\
+	\t2 m \in matchesPattern \land m \in selectableModels~(routeVia~h) ) ) \\
+	( \forall h : \dom registered @ \\
+	\t1 model~h \in registered~h \land \\
+	\t1 registered~h \subseteq selectableModels~(routeVia~h) )
+\end{schema}
+
+External observation is deliberately not a $Config$.  The decoder is total and
+classifies absent, unreadable, malformed, decoded, missing-slot, invalid-slot,
+and present-slot inputs.  The raw fields remain available only as decoded data;
+every predicate below guards partial-function application with a domain test.
+
+\begin{zed}
+	ObservationKind ::= obsAbsent | obsUnreadable | obsMalformed | obsDecoded \\
+	SlotState ::= slotMissing | slotInvalid | slotPresent
+\end{zed}
+
+\begin{schema}{ObservedConfig}
+	RawConfig \\
+	observationKind : ObservationKind \\
+	routeSlot, modelSlot, authSlot, registrationSlot : SlotState
+	\where
+	observationKind \neq obsDecoded \implies \\
+	\t1 routeSlot = slotMissing \land modelSlot = slotMissing \land \\
+	\t1 authSlot = slotMissing \land registrationSlot = slotMissing
 \end{schema}
 
 \section{Initial state}
@@ -223,14 +299,15 @@ checker:
 Never configured: no routed harness, no override, no aliases, no picker lists.
 
 \begin{schema}{Init}
-  Config'
-\where
-  routeVia' = \emptyset \\
-  model' = \emptyset \\
-  hauth' = \emptyset \\
-  override' = \emptyset \\
-  aliases' = \emptyset \\
-  shown' = \emptyset
+	RawConfig'
+	\where
+	routeVia' = \emptyset \\
+	model' = \emptyset \\
+	hauth' = \emptyset \\
+	override' = \emptyset \\
+	aliases' = \emptyset \\
+	registered' = \emptyset \\
+	shown' = \emptyset
 \end{schema}
 
 \section{The core guarantees}
@@ -246,10 +323,10 @@ definitional set, so it has teeth: a model whose provider the source does not
 serve violates it.
 
 \begin{schema}{DefaultRoutable}
-  Config
-\where
-  \forall h : \dom routeVia @ \\
-  \t1 providerOf~(model~h) \in srcServes~(routeVia~h)
+	Config
+	\where
+	\forall h : \dom routeVia @ \\
+	\t1 providerOf~(model~h) \in srcServes~(routeVia~h)
 \end{schema}
 
 \textbf{Protocol coherence.} Every routed harness's source speaks that harness's
@@ -257,9 +334,9 @@ protocol --- Claude Code only ever routes through an Anthropic-capable source,
 the OpenAI harnesses through OpenAI-capable ones.
 
 \begin{schema}{ProtocolCoherent}
-  Config
-\where
-  \forall h : \dom routeVia @ speaks~h \in srcProtocols~(routeVia~h)
+	Config
+	\where
+	\forall h : \dom routeVia @ speaks~h \in srcProtocols~(routeVia~h)
 \end{schema}
 
 \textbf{Claude routing-preservation.} When Claude Code is routed, its override is
@@ -269,13 +346,13 @@ mis-routes). The ``all four set'' requirement is what stops a routed-but-empty
 alias state passing as correct.
 
 \begin{schema}{ClaudeRoutingPreserved}
-  Config
-\where
-  claudecode \in \dom routeVia \implies \\
-  \t1 ( claudecode \in override \land \\
-  \t1   \dom aliases = \{ opus, sonnet, haiku, fable \} \land \\
-  \t1   ( \forall t : \dom aliases @ \\
-  \t2     providerOf~(aliases~t) \in srcServes~(routeVia~claudecode) ) )
+	Config
+	\where
+	claudecode \in \dom routeVia \implies \\
+	\t1 ( claudecode \in override \land \\
+	\t1   \dom aliases = \{ opus, sonnet, haiku, fable \} \land \\
+	\t1   ( \forall t : \dom aliases @ \\
+	\t2     providerOf~(aliases~t) \in srcServes~(routeVia~claudecode) ) )
 \end{schema}
 
 \textbf{Picker soundness.} A native picker never offers an unroutable id: every
@@ -288,10 +365,10 @@ An \emph{empty} picker view ($shown~h = \emptyset$) is a legal, intentional stat
 correctly --- it withholds nothing unroutable because it shows nothing.
 
 \begin{schema}{PickerSound}
-  Config
-\where
-  \forall h : \dom shown @ \forall m : shown~h @ \\
-  \t1 m \in matchesPattern \land providerOf~m \in srcServes~(routeVia~h)
+	Config
+	\where
+	\forall h : \dom shown @ \forall m : shown~h @ \\
+	\t1 m \in matchesPattern \land providerOf~m \in srcServes~(routeVia~h)
 \end{schema}
 
 \textbf{The forbidden failure.} A routed harness whose default's provider its
@@ -300,23 +377,23 @@ routed with a tier knob unset or unroutable --- any request that reaches no vali
 upstream. Not a legal $Config$; named as the predicate the invariant excludes.
 
 \begin{schema}{SilentMisroute}
-  configured : \power Source \\
-  routeVia : Harness \pfun Source \\
-  model : Harness \pfun ModelId \\
-  hauth : Harness \pfun AuthMode \\
-  override : \power Harness \\
-  aliases : Tier \pfun ModelId \\
-  shown : Harness \pfun \power ModelId
-\where
-  \dom model = \dom routeVia \\
-  ( ( \exists h : \dom routeVia @ \\
-  \t1 providerOf~(model~h) \notin srcServes~(routeVia~h) ) \lor \\
-  \t1 ( \exists h : canonicalizes \cap \dom routeVia @ h \notin override ) \lor \\
-  \t1 ( claudecode \in \dom routeVia \land \\
-  \t2 \dom aliases \neq \{ opus, sonnet, haiku, fable \} ) )
+	configured : \power Source \\
+	routeVia : Harness \pfun Source \\
+	model : Harness \pfun ModelId \\
+	hauth : Harness \pfun AuthMode \\
+	override : \power Harness \\
+	aliases : Tier \pfun ModelId \\
+	shown : Harness \pfun \power ModelId
+	\where
+	\dom model = \dom routeVia \\
+	( ( \exists h : \dom routeVia @ \\
+	\t1 providerOf~(model~h) \notin srcServes~(routeVia~h) ) \lor \\
+	\t1 ( \exists h : canonicalizes \cap \dom routeVia @ h \notin override ) \lor \\
+	\t1 ( claudecode \in \dom routeVia \land \\
+	\t2 \dom aliases \neq \{ opus, sonnet, haiku, fable \} ) )
 \end{schema}
 
-\section{Operation: \texttt{route} --- the operator picks a route}
+\section{Factored operation: \texttt{route}}
 
 The one selecting operation. The operator names a set of harnesses $hs?$, a
 source $s?$, a default model $m?$, an auth mode $a?$, and (when Claude Code is in
@@ -330,32 +407,53 @@ is served by $s?$; $a?$ is accepted by $s?$; $subauth$ only where $s?$ is
 Anthropic-capable; and if Claude Code is chosen, all four tiers are supplied and
 routable on $s?$.
 
+The operation is factored so its effect cannot smuggle $Config'$ in as a
+hypothesis.  Empty selection, incoherent pre-state, and every eligibility rule
+are explicit preconditions.  The effect assigns every raw field.
+
+\begin{schema}{RouteInput}
+	hs? : \power Harness \\
+	s? : Source \\
+	m? : ModelId \\
+	a? : AuthMode \\
+	tiers? : Tier \pfun ModelId
+\end{schema}
+
+\begin{schema}{RoutePre}
+	Config \\
+	RouteInput
+	\where
+	hs? \neq \emptyset \\
+	s? \in configured \\
+	( \forall h : hs? @ speaks~h \in srcProtocols~s? ) \\
+	m? \in selectableModels~s? \\
+	a? \in srcAuth~s? \\
+	( a? = subauth \implies hs? = \{ claudecode \} ) \\
+	( claudecode \in hs? \implies \\
+	\t1 ( \dom tiers? = \{ opus, sonnet, haiku, fable \} \land \\
+	\t1   ( \forall t : \dom tiers? @ tiers?~t \in selectableModels~s? ) ) )
+\end{schema}
+
+\begin{schema}{RouteEffect}
+	\Delta RawConfig \\
+	RouteInput
+	\where
+	configured' = configured \\
+	routeVia' = routeVia \oplus \{ h : hs? @ h \mapsto s? \} \\
+	model' = model \oplus \{ h : hs? @ h \mapsto m? \} \\
+	hauth' = hauth \oplus \{ h : hs? @ h \mapsto a? \} \\
+	override' = override \cup ( canonicalizes \cap hs? ) \\
+	( claudecode \in hs? \implies aliases' = tiers? ) \\
+	( claudecode \notin hs? \implies aliases' = aliases ) \\
+	registered' = ( needsRegistration \cap \dom routeVia' ) \dres registered \\
+	\t1 \oplus \{ h : needsRegistration \cap hs? @ h \mapsto \{ m? \} \} \\
+	shown' = ( showsPicker \cap \dom routeVia' ) \dres shown \\
+	\t1 \oplus \{ h : showsPicker \cap hs? @ h \mapsto \emptyset \}
+\end{schema}
+
 \begin{schema}{RouteOk}
-  \Delta Config \\
-  hs? : \power Harness \\
-  s? : Source \\
-  m? : ModelId \\
-  a? : AuthMode \\
-  tiers? : Tier \pfun ModelId
-\where
-  hs? \neq \emptyset \\
-  s? \in configured \\
-  ( \forall h : hs? @ speaks~h \in srcProtocols~s? ) \\
-  providerOf~m? \in srcServes~s? \\
-  a? \in srcAuth~s? \\
-  ( a? = subauth \implies anthropic \in srcProtocols~s? ) \\
-  ( claudecode \in hs? \implies \\
-  \t1 ( \dom tiers? = \{ opus, sonnet, haiku, fable \} \land \\
-  \t1   ( \forall t : \dom tiers? @ providerOf~(tiers?~t) \in srcServes~s? ) ) ) \\
-  configured' = configured \\
-  routeVia' = routeVia \oplus \{ h : hs? @ h \mapsto s? \} \\
-  model' = model \oplus \{ h : hs? @ h \mapsto m? \} \\
-  hauth' = hauth \oplus \{ h : hs? @ h \mapsto a? \} \\
-  override' = override \cup ( canonicalizes \cap hs? ) \\
-  ( claudecode \in hs? \implies aliases' = tiers? ) \\
-  ( claudecode \notin hs? \implies aliases' = aliases ) \\
-  shown' = ( showsPicker \cap \dom routeVia' ) \dres shown \\
-  \t1 \oplus \{ h : showsPicker \cap hs? @ h \mapsto \emptyset \}
+	RoutePre \\
+	RouteEffect
 \end{schema}
 
 The refusals, each a no-op with a distinct code: source not configured; source
@@ -363,51 +461,101 @@ cannot carry a chosen harness's protocol; the default's provider not served; the
 auth mode not accepted; a $subauth$ request to a non-Anthropic source; or Claude
 Code chosen without all four routable tiers.
 
+\begin{zed}
+	RouteReason ::= emptySelection | incoherentPrestate | sourceNotConfigured | \\
+	\t1 protocolMismatch | modelNotSelectable | authNotAccepted | \\
+	\t1 subscriptionNotClaudeOnly | tiersIncomplete | tierNotSelectable
+\end{zed}
+
 \begin{schema}{RouteRefused}
-  \Xi Config \\
-  hs? : \power Harness \\
-  s? : Source \\
-  m? : ModelId \\
-  a? : AuthMode \\
-  tiers? : Tier \pfun ModelId \\
-  err! : \num
-\where
-  ( s? \notin configured \lor \\
-  \t1 ( \exists h : hs? @ speaks~h \notin srcProtocols~s? ) \lor \\
-  \t1 providerOf~m? \notin srcServes~s? \lor \\
-  \t1 a? \notin srcAuth~s? \lor \\
-  \t1 ( a? = subauth \land anthropic \notin srcProtocols~s? ) \lor \\
-  \t1 ( claudecode \in hs? \land \\
-  \t2 \lnot ( \dom tiers? = \{ opus, sonnet, haiku, fable \} \land \\
-  \t3   ( \forall t : \dom tiers? @ providerOf~(tiers?~t) \in srcServes~s? ) ) ) ) \\
-  err! = 1
+	\Xi RawConfig \\
+	RouteInput \\
+	reasons! : \power RouteReason
+	\where
+	( emptySelection \in reasons! \iff hs? = \emptyset ) \\
+	( incoherentPrestate \in reasons! \iff \theta RawConfig \notin Config ) \\
+	( sourceNotConfigured \in reasons! \iff s? \notin configured ) \\
+	( protocolMismatch \in reasons! \iff \\
+	\t1 ( \exists h : hs? @ speaks~h \notin srcProtocols~s? ) ) \\
+	( modelNotSelectable \in reasons! \iff m? \notin selectableModels~s? ) \\
+	( authNotAccepted \in reasons! \iff a? \notin srcAuth~s? ) \\
+	( subscriptionNotClaudeOnly \in reasons! \iff \\
+	\t1 a? = subauth \land hs? \neq \{ claudecode \} ) \\
+	( tiersIncomplete \in reasons! \iff claudecode \in hs? \land \\
+	\t1 \dom tiers? \neq \{ opus, sonnet, haiku, fable \} ) \\
+	( tierNotSelectable \in reasons! \iff claudecode \in hs? \land \\
+	\t1 ( \exists t : \dom tiers? @ tiers?~t \notin selectableModels~s? ) ) \\
+	reasons! \neq \emptyset
 \end{schema}
 
 \begin{zed}
-  Route \defs RouteOk \lor RouteRefused
+	Route \defs RouteOk \lor RouteRefused
 \end{zed}
 
-\section{Operation: \texttt{unroute} (direct)}
+\section{Factored operation: \texttt{unroute} (direct)}
 
-Return a set of harnesses to their vendor defaults: drop them from every managed
-map. Clearing Claude Code also clears the aliases (the invariant requires
-$aliases = \emptyset$ when Claude Code is unrouted).
+Return a nonempty set of harnesses to their vendor defaults.  Like route, the
+general-target operation separates input, coherent precondition, complete raw
+effect, and exact no-op refusal.  Malformed observations are for read commands;
+they never silently authorize mutation.  Removing registration is part of the
+effect.  Clearing Claude Code also clears aliases.
 
-\begin{schema}{Unroute}
-  \Delta Config \\
-  hs? : \power Harness
-\where
-  configured' = configured \\
-  routeVia' = hs? \ndres routeVia \\
-  model' = hs? \ndres model \\
-  hauth' = hs? \ndres hauth \\
-  override' = override \setminus hs? \\
-  ( claudecode \in hs? \implies aliases' = \emptyset ) \\
-  ( claudecode \notin hs? \implies aliases' = aliases ) \\
-  shown' = hs? \ndres shown
+\begin{schema}{UnrouteInput}
+	hs? : \power Harness
 \end{schema}
 
-\section{Read-only operations: \texttt{status}, \texttt{list}, \texttt{verify}}
+\begin{schema}{UnroutePre}
+	Config \\
+	UnrouteInput
+	\where
+	hs? \neq \emptyset
+\end{schema}
+
+\begin{schema}{UnrouteEffect}
+	\Delta RawConfig \\
+	UnrouteInput
+	\where
+	configured' = configured \\
+	routeVia' = hs? \ndres routeVia \\
+	model' = hs? \ndres model \\
+	hauth' = hs? \ndres hauth \\
+	override' = override \setminus hs? \\
+	( claudecode \in hs? \implies aliases' = \emptyset ) \\
+	( claudecode \notin hs? \implies aliases' = aliases ) \\
+	registered' = hs? \ndres registered \\
+	shown' = hs? \ndres shown
+\end{schema}
+
+\begin{schema}{UnrouteOk}
+	UnroutePre \\
+	UnrouteEffect
+\end{schema}
+
+\begin{zed}
+	UnrouteReason ::= unrouteEmptySelection | unrouteIncoherentPrestate
+\end{zed}
+
+\begin{schema}{UnrouteRefused}
+	\Xi RawConfig \\
+	UnrouteInput \\
+	unrouteReasons! : \power UnrouteReason
+	\where
+	( unrouteEmptySelection \in unrouteReasons! \iff hs? = \emptyset ) \\
+	( unrouteIncoherentPrestate \in unrouteReasons! \iff
+	\theta RawConfig \notin Config ) \\
+	unrouteReasons! \neq \emptyset
+\end{schema}
+
+\begin{zed}
+	Unroute \defs UnrouteOk \lor UnrouteRefused
+\end{zed}
+
+\begin{theorem}{UnrouteEstablishesConfig}
+	\forall \Delta RawConfig; hs? : \power Harness @ \\
+	\t1 UnroutePre \land UnrouteEffect \implies \theta RawConfig' \in Config
+\end{theorem}
+
+\section{Read-only operations and non-vacuous verification}
 
 $Status$ reports the per-harness route and default. $List$ reports, for a source,
 the providers it serves. $Verify$ is the probe: $ok! = 1$ exactly when the
@@ -417,52 +565,72 @@ present, and (if Claude Code routed) all four tiers routable. Because $Config$
 already enforces these, $Verify$ cannot pass a mis-routed state.
 
 \begin{schema}{Status}
-  \Xi Config \\
-  route! : Harness \pfun Source \\
-  dflt! : Harness \pfun ModelId
-\where
-  route! = routeVia \\
-  dflt! = model
+	\Xi Config \\
+	route! : Harness \pfun Source \\
+	dflt! : Harness \pfun ModelId
+	\where
+	route! = routeVia \\
+	dflt! = model
 \end{schema}
 
 \begin{schema}{List}
-  \Xi Config \\
-  s? : Source \\
-  provs! : \power Provider
-\where
-  provs! = srcServes~s?
-\end{schema}
-
-\begin{schema}{VerifyPass}
-  \Xi Config \\
-  ok! : \num
-\where
-  ( \forall h : \dom routeVia @ \\
-  \t1 providerOf~(model~h) \in srcServes~(routeVia~h) \land \\
-  \t1 speaks~h \in srcProtocols~(routeVia~h) \land \\
-  \t1 hauth~h \in srcAuth~(routeVia~h) \land \\
-  \t1 ( h \in canonicalizes \implies h \in override ) ) \\
-  ( claudecode \in \dom routeVia \implies \\
-  \t1 \dom aliases = \{ opus, sonnet, haiku, fable \} ) \\
-  ok! = 1
-\end{schema}
-
-\begin{schema}{VerifyFail}
-  \Xi Config \\
-  ok! : \num
-\where
-  ( ( \exists h : \dom routeVia @ \\
-  \t1 providerOf~(model~h) \notin srcServes~(routeVia~h) \lor \\
-  \t1 speaks~h \notin srcProtocols~(routeVia~h) \lor \\
-  \t1 hauth~h \notin srcAuth~(routeVia~h) \lor \\
-  \t1 ( h \in canonicalizes \land h \notin override ) ) \lor \\
-  \t1 ( claudecode \in \dom routeVia \land \\
-  \t2 \dom aliases \neq \{ opus, sonnet, haiku, fable \} ) ) \\
-  ok! = 0
+	\Xi Config \\
+	s? : Source \\
+	provs! : \power Provider
+	\where
+	provs! = srcServes~s?
 \end{schema}
 
 \begin{zed}
-  Verify \defs VerifyPass \lor VerifyFail
+	ProbeOutcome ::= probeNotRun | probeCredentialMissing | probeCredentialInvalid | \\
+	\t1 probeTimeout | probeUnreachable | probeRedirect | probeAuthFailure | \\
+	\t1 probeHTTPFailure | probeInvalidCatalog | probeModelAbsent | probePresent
+\end{zed}
+
+\begin{schema}{VerifyInput}
+	ObservedConfig \\
+	probe? : ProbeOutcome
+\end{schema}
+
+\begin{schema}{LocalPass}
+	ObservedConfig
+	\where
+	observationKind = obsDecoded \\
+	routeSlot = slotPresent \\
+	modelSlot = slotPresent \\
+	authSlot = slotPresent \\
+	registrationSlot = slotPresent \\
+	\theta RawConfig \in Config \\
+	\dom routeVia \neq \emptyset
+\end{schema}
+
+\begin{schema}{LivePass}
+	VerifyInput
+	\where
+	probe? = probePresent
+\end{schema}
+
+\begin{schema}{VerifyPass}
+	\Xi ObservedConfig \\
+	probe? : ProbeOutcome \\
+	ok! : Bool
+	\where
+	LocalPass \\
+	probe? = probePresent \\
+	ok! = yes
+\end{schema}
+
+\begin{schema}{VerifyFail}
+	\Xi ObservedConfig \\
+	probe? : ProbeOutcome \\
+	ok! : Bool
+	\where
+	\lnot ( LocalPass \land probe? = probePresent ) \\
+	ok! = no
+\end{schema}
+
+\begin{zed}
+	Verify \defs VerifyPass \lor VerifyFail
 \end{zed}
 
 \section{The system invariant and the apply obligation}
@@ -471,15 +639,15 @@ $SystemOK$ restates, as a single predicate, that every routed harness is fully
 correct --- it is exactly the body $Config$ enforces, named for checking.
 
 \begin{schema}{SystemOK}
-  Config
-\where
-  ( \forall h : \dom routeVia @ \\
-  \t1 providerOf~(model~h) \in srcServes~(routeVia~h) \land \\
-  \t1 speaks~h \in srcProtocols~(routeVia~h) \land \\
-  \t1 hauth~h \in srcAuth~(routeVia~h) \land \\
-  \t1 ( h \in canonicalizes \implies h \in override ) ) \land \\
-  ( claudecode \in \dom routeVia \implies \\
-  \t1 \dom aliases = \{ opus, sonnet, haiku, fable \} )
+	Config
+	\where
+	( \forall h : \dom routeVia @ \\
+	\t1 providerOf~(model~h) \in srcServes~(routeVia~h) \land \\
+	\t1 speaks~h \in srcProtocols~(routeVia~h) \land \\
+	\t1 hauth~h \in srcAuth~(routeVia~h) \land \\
+	\t1 ( h \in canonicalizes \implies h \in override ) ) \land \\
+	( claudecode \in \dom routeVia \implies \\
+	\t1 \dom aliases = \{ opus, sonnet, haiku, fable \} )
 \end{schema}
 
 The real obligation, with no smuggled hypothesis: every harness $RouteOk$
@@ -487,12 +655,3383 @@ touches ends routable on the source the operator chose, established by $RouteOk$
 own preconditions and effect alone. ProB checks it via \texttt{-cbc\_assertions}.
 
 \begin{theorem}{RouteEstablishesRoutability}
-  \forall \Delta Config; hs? : \power Harness; s? : Source; m? : ModelId; \\
-  \t1 a? : AuthMode; tiers? : Tier \pfun ModelId @ \\
-  \t2 RouteOk \implies \\
-  \t3 ( \forall h : hs? @ \\
-  \t4 providerOf~(model'~h) \in srcServes~(routeVia'~h) )
+	\forall \Delta RawConfig; hs? : \power Harness; s? : Source; m? : ModelId; \\
+	\t1 a? : AuthMode; tiers? : Tier \pfun ModelId @ \\
+	\t2 RouteOk \implies \\
+	\t3 ( \forall h : hs? @ \\
+	\t4 providerOf~(model'~h) \in srcServes~(routeVia'~h) )
 \end{theorem}
+
+\begin{theorem}{RouteEstablishesConfig}
+	\forall \Delta RawConfig; hs? : \power Harness; s? : Source; m? : ModelId; \\
+	\t1 a? : AuthMode; tiers? : Tier \pfun ModelId @ \\
+	\t2 RoutePre \land RouteEffect \implies \theta RawConfig' \in Config
+\end{theorem}
+
+\section{Slice 1: explicit-file OpenCode refinement}
+
+The first delivery slice is intentionally narrower than the general model.  It
+supports one harness/source pair, an explicitly named strict-JSON file, an
+explicit Bifrost deployment root, and exactly two model tokens.  This is a
+refinement, not a claim that the general source model has only one source.
+
+\begin{axdef}
+	sol, astra, unsupported : ModelId \\
+	bifrostFixture : Source
+	\where
+	sol \neq astra \\
+	unsupported \notin \{ sol, astra \} \\
+	providerOf~unsupported = providerOf~sol \\
+	selectableModels~bifrostFixture = \{ sol, astra \} \\
+	openai \in srcProtocols~bifrostFixture \\
+	vkauth \in srcAuth~bifrostFixture
+\end{axdef}
+
+\begin{zed}
+	RootState ::= validHTTPSRoot | validLoopbackHTTPRoot | validInsecureHTTPRoot | \\
+	\t1 invalidRoot | endpointFormInsteadOfRoot \\
+	SliceHarness ::= sliceOpenCode | otherHarnessToken \\
+	SliceSource ::= sliceBifrost | otherSourceToken
+\end{zed}
+
+\begin{schema}{ConcreteInputGate}
+	sliceHarness? : SliceHarness \\
+	sliceSource? : SliceSource \\
+	sliceModel? : ModelId \\
+	rootState? : RootState \\
+	configPathLexicallyAbsolute?, insecureConsent?, gateAccepted! : Bool
+	\where
+	gateAccepted! = yes \iff \\
+	\t1 sliceHarness? = sliceOpenCode \land sliceSource? = sliceBifrost \land \\
+	\t1 sliceModel? \in \{ sol, astra \} \land \\
+	\t1 configPathLexicallyAbsolute? = yes \land \\
+	\t1 ( rootState? \in \{ validHTTPSRoot, validLoopbackHTTPRoot \} \lor \\
+	\t2 ( rootState? = validInsecureHTTPRoot \land insecureConsent? = yes ) )
+\end{schema}
+
+The concrete spellings are respectively
+\texttt{bedrock/gpt-5.6-sol} and \texttt{openai/gpt-6-astra}.  A bounded
+valuation must give $unsupported$ the same provider as one supported model;
+that witnesses that provider membership alone does not imply fixture
+membership.  Route is offline.  Status reads only the explicit file.  Verify
+checks that file and then attempts at most one authenticated catalog request.
+
+For deployment root $R$, the managed OpenCode base is $R$/\texttt{openai/v1},
+the catalog is $R$/\texttt{v1/models}, and the Responses endpoint is beneath the
+managed base.  The root must be absolute HTTP(S), have a nonempty host and valid
+optional port, and contain no userinfo, query, fragment, controls, backslashes,
+dot segments, encoded separators, or encoded dot-segment ambiguity.  Supplying
+an endpoint form in place of the root is rejected.  One trailing slash is
+removed.  HTTPS and literal loopback HTTP are accepted; exact, case-normalized
+\texttt{localhost} HTTP is accepted only with loopback-only connection.  Every
+other HTTP use requires fresh \texttt{--allow-insecure-http} consent.  Consent
+is not persisted, never weakens TLS, and never enables redirects.
+
+\subsection{Native OpenCode V2 projection and ownership}
+
+For selected token $M$ the native document has root default
+\texttt{bifrost/M}; \texttt{providers.bifrost.package} is
+\texttt{@opencode/ai/providers/openai-compatible/responses};
+\texttt{env} is exactly \texttt{["BIFROST\_VK"]}; settings contain the derived
+\texttt{baseURL} and literal \texttt{\{env:BIFROST\_VK\}}; and model $M$ is
+registered with \texttt{modelID=M}, \texttt{disabled=false}, and tool
+capability true.  Registration does not prune another registration and is not a
+picker filter.  No cost, limit, variant, legacy singular \texttt{provider},
+\texttt{options}, \texttt{agent}, or \texttt{small\_model} field is invented.
+
+One pure normalizer returns a new document, sorted unique changed RFC~6901
+pointers, and sorted unique conflict pointers.  It sets the owned projection;
+removes provider \texttt{canonical}; removes model/variant package, endpoint,
+credential, provider, route/auth-control header, and request-body model
+overrides; and applies that overlay removal to every existing Bifrost model and
+declared variant.  Controlled headers are case-insensitive
+\texttt{authorization}, \texttt{proxy-authorization}, \texttt{host},
+\texttt{api-key}, \texttt{x-api-key}, \texttt{openai-organization},
+\texttt{openai-project}, \texttt{x-provider-api-keys}, and prefixes
+\texttt{x-bf-}/\texttt{x-bifrost-}.  Body overrides are
+\texttt{body.model}, \texttt{settings.body.model}, and
+\texttt{settings.extraBody.model}.
+
+Wrong-type relevant containers are refused rather than discarded.  The frame
+preserves agents (including maintenance pins), sessions, separate files, other
+providers, unrelated root data, exact JSON numbers, and unselected model
+metadata outside those enumerated overlays.  No-op preserves bytes, inode,
+mtime, and artifact count.
+
+The checker uses a finite native-document projection rather than unrestricted
+JSON.  Each owned leaf is absent, already canonical, or conflicting.  Native
+registration presence is independent of the smaller certified registration
+projection in $RawConfig$, so unsupported and unselected declarations can be
+retained without being certified as selectable.  Presence of a selected native
+registration is also independent of each selected owned leaf: a missing
+$modelID$, enabled, or tools leaf is a repairable addition.  Opaque protected
+sentinels cover agents (including maintenance pins), unrelated JSON, and the
+exact lexical bytes of arbitrary numbers.  Distinct leaves have distinct
+RFC~6901 pointers.
+
+\begin{zed}
+	OwnedLeaf ::= rootDefaultLeaf | packageLeaf | envLeaf | baseURLLeaf | \\
+	\t1 apiKeyLeaf | providerCanonicalLeaf | modelRouteOverlayLeaf | \\
+	\t1 variantRouteOverlayLeaf | selectedModelIDLeaf | selectedDisabledLeaf | \\
+	\t1 selectedToolsLeaf \\
+	LeafState ::= leafMissing | leafCanonical | leafConflict \\
+	ProtectedSentinel ::= agentsSentinel | maintenancePinSentinel | \\
+	\t1 sessionSentinel | separateAgentFileSentinel | unrelatedRootSentinel | \\
+	\t1 otherProviderSentinel | unselectedMetadataSentinel | exactNumberSentinel
+\end{zed}
+
+\begin{axdef}
+	leafPointer : OwnedLeaf \fun JSONPointer
+	\where
+	\forall l_1, l_2 : OwnedLeaf @
+	leafPointer~l_1 = leafPointer~l_2 \implies l_1 = l_2
+\end{axdef}
+
+\begin{schema}{NativeDocument}
+	leafState : OwnedLeaf \fun LeafState \\
+	nativeRegistrations : \power ModelId \\
+	protected : ProtectedSentinel \fun ByteString
+\end{schema}
+
+Normalization is an executable finite relation.  It assigns every raw and
+native component, preserves prior fixture registrations during A-to-B switches,
+establishes one coherent selected route, and frames every protected sentinel.
+The changed and conflict sets are exact extensional images, not unconstrained
+summaries.  Root-default replacement is changed but deliberately not a conflict;
+all other conflicting owned leaves trigger the exact backup biconditional.
+
+\begin{schema}{OpenCodeNormalization}
+	\Delta RawConfig \\
+	\Delta NativeDocument \\
+	requested : ModelId \\
+	certifiedRegistrations : \power ModelId \\
+	changedPaths, conflictPaths : \power JSONPointer \\
+	backupRequired : Bool
+	\where
+	\theta RawConfig \in Config \\
+	bifrostFixture \in configured \\
+	requested \in \{ sol, astra \} \\
+	nativeRegistrations \subseteq \{ sol, astra, unsupported \} \\
+	( opencode \in \dom registered \implies
+	certifiedRegistrations = registered~opencode \land
+	registered~opencode \subseteq nativeRegistrations ) \\
+	( opencode \notin \dom registered \implies
+	certifiedRegistrations = \emptyset ) \\
+	configured' = configured \\
+	routeVia' = routeVia \oplus \{ opencode \mapsto bifrostFixture \} \\
+	model' = model \oplus \{ opencode \mapsto requested \} \\
+	hauth' = hauth \oplus \{ opencode \mapsto vkauth \} \\
+	override' = override \\
+	aliases' = aliases \\
+	registered' = registered \oplus
+	\{ opencode \mapsto
+	( ( certifiedRegistrations \cap \{ sol, astra \} ) \cup \{ requested \} ) \} \\
+	shown' = shown \oplus \{ opencode \mapsto \emptyset \} \\
+	nativeRegistrations' = nativeRegistrations \cup \{ requested \} \\
+	protected' = protected \\
+	leafState' = \{ l : OwnedLeaf @ l \mapsto leafCanonical \} \\
+	changedPaths = \{ l : OwnedLeaf | leafState~l \neq leafCanonical @
+	leafPointer~l \} \\
+	conflictPaths = \{ l : OwnedLeaf | l \neq rootDefaultLeaf \land
+	leafState~l = leafConflict @ leafPointer~l \} \\
+	( backupRequired = yes \iff conflictPaths \neq \emptyset )
+\end{schema}
+
+\begin{theorem}{NormalizationEstablishesConfig}
+	\forall OpenCodeNormalization @ \theta RawConfig' \in Config
+\end{theorem}
+
+\begin{theorem}{NormalizationFramesProtectedState}
+	\forall OpenCodeNormalization @ protected' = protected
+\end{theorem}
+
+\begin{theorem}{NormalizationRetainsNativeRegistrations}
+	\forall OpenCodeNormalization @
+	nativeRegistrations \subseteq nativeRegistrations'
+\end{theorem}
+
+\begin{theorem}{NormalizationRepairsSelectedLeaves}
+	\forall OpenCodeNormalization @ \\
+	\t1 leafState'~selectedModelIDLeaf = leafCanonical \land \\
+	\t1 leafState'~selectedDisabledLeaf = leafCanonical \land
+	leafState'~selectedToolsLeaf = leafCanonical
+\end{theorem}
+
+$conflictPaths \neq \emptyset$ exactly when an existing owned routing or
+registration value, other than root-default assignment alone, is replaced or
+removed.  It is the backup trigger.  Additions, canonical values, an absent
+selected native declaration, missing selected-registration leaves, and
+root-default-only A-to-B changes require no backup.  Unselected native
+declarations are retained but are not added to the certified projection.
+
+\subsection{Closed local and live result algebra}
+
+The public JSON schema is closed: every displayed field is required, arrays are
+never null, and null is allowed only by the selected union variant.  Schema
+version is integer one.  Findings sort by phase, code, and nullable field;
+warnings sort by phase and code.  Human rendering JSON-quotes all externally
+derived strings.  Messages never contain credentials, old/new values, full
+configuration, response bodies, or raw URL-bearing errors.
+
+\begin{zed}
+	Phase ::= inputPhase | localPhase | livePhase | writePhase | reportPhase
+\end{zed}
+
+% POINTS-CHECK BEGIN types.transport type
+\begin{zed}
+	Transport ::= httpsTransport | loopbackHTTP | insecureHTTP
+\end{zed}
+% POINTS-CHECK END types.transport
+
+\begin{zed}
+	Durability ::= notApplicable | confirmed | uncertain \\
+	LocalCause ::= localInvalid | localCancelled | localAbsent | localUnreadable | \\
+	\t1 localMalformed | localUnmanaged | localIncoherent | localCoherent \\
+	LocalVariant ::= localNotRun | localReadFailure | localNotApplicable | \\
+	\t1 localIncoherentResult | localPassed \\
+	LiveCause ::= liveInvalidInput | liveObservationFailed | liveRouteUnmanaged | \\
+	\t1 liveLocalFailed | liveTransportNotAuthorized | liveCredentialMissing | \\
+	\t1 liveCredentialInvalid | liveCancelledBeforeObservation | \\
+	\t1 liveCancelledAfterLocal | liveTimeout | \\
+	\t1 liveCancelled | liveUnreachable | liveRedirect | liveAuthentication | \\
+	\t1 liveOtherHTTP | liveInvalidCatalog | liveModelAbsent | livePresent \\
+	LiveReason ::= reasonInvalidInput | reasonObservationFailed | \\
+	\t1 reasonRouteUnmanaged | reasonLocalFailed | reasonTransportNotAuthorized | \\
+	\t1 reasonCredentialMissing | reasonCredentialInvalid | \\
+	\t1 reasonCancelledBeforeRequest | reasonTimeout | reasonCancelled | \\
+	\t1 reasonUnreachable | reasonRedirect | reasonAuthentication | reasonOtherHTTP | \\
+	\t1 reasonInvalidCatalog | reasonModelAbsent \\
+	LiveVariant ::= liveNotRun | liveFailed | livePassed \\
+	CommandOutcome ::= unchangedOutcome | committedOutcome | refusedOutcome | \\
+	\t1 failedOutcome | observedOutcome | passedOutcome \\
+	FindingCode ::= eUsage | eUnsupportedHarness | eUnsupportedSource | \\
+	\t1 eModelNotInFixture | eBaseURLInvalid | eInsecureHTTP | \\
+	\t1 eConfigNotFound | eConfigUnreadable | eConfigFormat | eConfigShape | \\
+	\t1 eRouteNotConfigured | eTransportMismatch | eCredentialReferenceMismatch | \\
+	\t1 eModelNotRegistered | eRouteOverrideConflict | eParentMissing | ePathUnsafe | \\
+	\t1 eWriteBusy | eBackupExists | eBackupWrite | eConfigChanged | eConfigWrite | \\
+	\t1 eCleanup | eDurability | eCredentialMissing | eCredentialInvalid | \\
+	\t1 eLiveRedirect | eLiveTimeout | eLiveAuth | eLiveUnreachable | eLiveHTTP | \\
+	\t1 eLiveCatalog | eLiveModelAbsent | eCancelled | eReport \\
+	WarningCode ::= wRouteOverwrite | wInsecureHTTP \\
+	ResidualState ::= retainedResidual | deletionUnconfirmed | replacedResidual | \\
+	\t1 uninspectedResidual \\
+	CrashPresence ::= ownedPresent | ownedAbsent | presenceUncertain \\
+	StatusVariant ::= statusObserved | statusRefused | statusFailed \\
+	VerifyVariant ::= verifyPassed | verifyRefused | verifyFailed
+\end{zed}
+
+Stable machine semantics use codes, never message matching.  Phase legality and
+the compact local/live cause-to-code abstraction are total finite functions.
+
+\begin{axdef}
+	allowedPhases : FindingCode \fun \power Phase \\
+	liveCodes : LiveCause \fun \power FindingCode
+	\where
+	( \forall c : \{ eUsage, eUnsupportedHarness, eUnsupportedSource \} @
+	allowedPhases~c = \{ inputPhase \} ) \\
+	( \forall c : \{ eModelNotInFixture, eBaseURLInvalid \} @
+	allowedPhases~c = \{ inputPhase, localPhase \} ) \\
+	allowedPhases~eInsecureHTTP = \{ inputPhase, livePhase \} \\
+	( \forall c : \{ eConfigNotFound, eConfigUnreadable, eConfigFormat,
+	eConfigShape, eRouteNotConfigured, eTransportMismatch,
+	eCredentialReferenceMismatch, eModelNotRegistered,
+	eRouteOverrideConflict, eParentMissing, ePathUnsafe, eWriteBusy \} @
+	allowedPhases~c = \{ localPhase \} ) \\
+	allowedPhases~eBackupExists = \{ localPhase, writePhase \} \\
+	( \forall c : \{ eBackupWrite, eConfigChanged, eConfigWrite, eCleanup,
+	eDurability \} @ allowedPhases~c = \{ writePhase \} ) \\
+	( \forall c : \{ eCredentialMissing, eCredentialInvalid, eLiveRedirect,
+	eLiveTimeout, eLiveAuth, eLiveUnreachable, eLiveHTTP, eLiveCatalog,
+	eLiveModelAbsent \} @ allowedPhases~c = \{ livePhase \} ) \\
+	allowedPhases~eCancelled = \{ localPhase, livePhase, writePhase \} \\
+	allowedPhases~eReport = \{ reportPhase \} \\
+	( \forall c : \{ liveInvalidInput, liveObservationFailed,
+	liveLocalFailed, livePresent \} @
+	liveCodes~c = \emptyset ) \\
+	liveCodes~liveRouteUnmanaged = \{ eRouteNotConfigured \} \\
+	liveCodes~liveTransportNotAuthorized = \{ eInsecureHTTP \} \\
+	liveCodes~liveCredentialMissing = \{ eCredentialMissing \} \\
+	liveCodes~liveCredentialInvalid = \{ eCredentialInvalid \} \\
+	liveCodes~liveCancelledBeforeObservation = \{ eCancelled \} \\
+	liveCodes~liveCancelledAfterLocal = \{ eCancelled \} \\
+	liveCodes~liveTimeout = \{ eLiveTimeout \} \\
+	liveCodes~liveCancelled = \{ eCancelled \} \\
+	liveCodes~liveUnreachable = \{ eLiveUnreachable \} \\
+	liveCodes~liveRedirect = \{ eLiveRedirect \} \\
+	liveCodes~liveAuthentication = \{ eLiveAuth \} \\
+	liveCodes~liveOtherHTTP = \{ eLiveHTTP \} \\
+	liveCodes~liveInvalidCatalog = \{ eLiveCatalog \} \\
+	liveCodes~liveModelAbsent = \{ eLiveModelAbsent \}
+\end{axdef}
+
+\begin{axdef}
+	localProducer : LocalCause \fun LocalVariant \\
+	liveProducer : LiveCause \fun LiveVariant \\
+	publicLiveReason : LiveCause \pfun LiveReason
+	\where
+	( \forall c : \{ localInvalid, localCancelled \} @
+	localProducer~c = localNotRun ) \\
+	( \forall c : \{ localAbsent, localUnreadable, localMalformed \} @
+	localProducer~c = localReadFailure ) \\
+	localProducer~localUnmanaged = localNotApplicable \\
+	localProducer~localIncoherent = localIncoherentResult \\
+	localProducer~localCoherent = localPassed \\
+	( \forall c : \{ liveInvalidInput, liveObservationFailed,
+	liveRouteUnmanaged, liveLocalFailed, liveTransportNotAuthorized,
+	liveCredentialMissing, liveCredentialInvalid,
+	liveCancelledBeforeObservation, liveCancelledAfterLocal \} @
+	liveProducer~c = liveNotRun ) \\
+	( \forall c : \{ liveTimeout, liveCancelled, liveUnreachable,
+	liveRedirect, liveAuthentication, liveOtherHTTP, liveInvalidCatalog,
+	liveModelAbsent \} @ liveProducer~c = liveFailed ) \\
+	liveProducer~livePresent = livePassed \\
+	\dom publicLiveReason = LiveCause \setminus \{ livePresent \} \\
+	publicLiveReason~liveInvalidInput = reasonInvalidInput \\
+	publicLiveReason~liveObservationFailed = reasonObservationFailed \\
+	publicLiveReason~liveRouteUnmanaged = reasonRouteUnmanaged \\
+	publicLiveReason~liveLocalFailed = reasonLocalFailed \\
+	publicLiveReason~liveTransportNotAuthorized = reasonTransportNotAuthorized \\
+	publicLiveReason~liveCredentialMissing = reasonCredentialMissing \\
+	publicLiveReason~liveCredentialInvalid = reasonCredentialInvalid \\
+	publicLiveReason~liveCancelledBeforeObservation = reasonCancelledBeforeRequest \\
+	publicLiveReason~liveCancelledAfterLocal = reasonCancelledBeforeRequest \\
+	publicLiveReason~liveTimeout = reasonTimeout \\
+	publicLiveReason~liveCancelled = reasonCancelled \\
+	publicLiveReason~liveUnreachable = reasonUnreachable \\
+	publicLiveReason~liveRedirect = reasonRedirect \\
+	publicLiveReason~liveAuthentication = reasonAuthentication \\
+	publicLiveReason~liveOtherHTTP = reasonOtherHTTP \\
+	publicLiveReason~liveInvalidCatalog = reasonInvalidCatalog \\
+	publicLiveReason~liveModelAbsent = reasonModelAbsent
+\end{axdef}
+
+\begin{schema}{LocalTerminal}
+	localCause : LocalCause \\
+	localSelectionPresent : Bool \\
+	localFindingCodes : \power FindingCode
+	\where
+	( localCause = localCoherent \iff localSelectionPresent = yes ) \lor
+	localCause = localIncoherent \\
+	( localCause = localInvalid \implies localFindingCodes = \{ eUsage \} ) \\
+	( localCause = localCancelled \implies localFindingCodes = \{ eCancelled \} ) \\
+	( localCause = localAbsent \implies localFindingCodes = \{ eConfigNotFound \} ) \\
+	( localCause = localUnreadable \implies
+	localFindingCodes = \{ eConfigUnreadable \} ) \\
+	( localCause = localMalformed \implies localFindingCodes = \{ eConfigFormat \} ) \\
+	( localCause \in \{ localUnmanaged, localCoherent \} \implies
+	localFindingCodes = \emptyset ) \\
+	( localCause = localIncoherent \implies localFindingCodes \neq \emptyset \land
+	localFindingCodes \subseteq \{ eModelNotInFixture, eBaseURLInvalid,
+	eConfigShape, eTransportMismatch, eCredentialReferenceMismatch,
+	eModelNotRegistered, eRouteOverrideConflict \} )
+\end{schema}
+
+\begin{schema}{LocalResult}
+	LocalTerminal \\
+	localVariant : LocalVariant
+	\where
+	localVariant = localProducer~localCause
+\end{schema}
+
+\begin{theorem}{LocalProducerTotalExclusive}
+	\forall LocalTerminal @
+	\# \{ v : LocalVariant | v = localProducer~localCause \} = 1
+\end{theorem}
+
+The live cause is an independent terminal fact.  Its result, request flag, URL
+nullability, status range, model nullability, and finding set are all derived by
+one closed truth table.  Redirect is exactly 3xx; authentication is 401/403;
+other HTTP excludes 2xx, 3xx, and authentication; catalog/model decisions require
+2xx.  Timeout and in-flight cancellation may retain one received status.  An
+early cancellation before observation has no catalog URL; cancellation after a
+local pass and URL derivation retains that URL while still reporting the single
+public cancelled-before-request reason.
+
+\begin{schema}{LiveTerminal}
+	liveCause : LiveCause \\
+	httpStatus : \power \num
+	\where
+	\# httpStatus \leq 1 \\
+	liveCause \in \{ liveInvalidInput, liveObservationFailed,
+	liveRouteUnmanaged, liveLocalFailed, liveTransportNotAuthorized,
+	liveCredentialMissing, liveCredentialInvalid,
+	liveCancelledBeforeObservation, liveCancelledAfterLocal,
+	liveUnreachable \} \implies
+	httpStatus = \emptyset \\
+	liveCause \in \{ liveTimeout, liveCancelled \} \implies
+	httpStatus \subseteq 100 \upto 599 \\
+	liveCause = liveRedirect \implies
+	httpStatus \subseteq 300 \upto 399 \land httpStatus \neq \emptyset \\
+	liveCause = liveAuthentication \implies
+	httpStatus \in \{ \{ 401 \}, \{ 403 \} \} \\
+	liveCause = liveOtherHTTP \implies httpStatus \neq \emptyset \land
+	httpStatus \subseteq ( (100 \upto 199) \cup (400 \upto 599) )
+	\setminus \{ 401, 403 \} \\
+	liveCause \in \{ liveInvalidCatalog, liveModelAbsent, livePresent \}
+	\implies httpStatus \neq \emptyset \land
+	httpStatus \subseteq 200 \upto 299
+\end{schema}
+
+\begin{schema}{LiveResult}
+	LiveTerminal \\
+	liveVariant : LiveVariant \\
+	requestAttempted, catalogURLPresent : Bool \\
+	modelPresent : \power Bool \\
+	liveResultReason : \power LiveReason \\
+	liveFindingCodes : \power FindingCode
+	\where
+	\# modelPresent \leq 1 \\
+	\# liveResultReason \leq 1 \\
+	liveVariant = liveProducer~liveCause \\
+	( liveCause = livePresent \iff liveResultReason = \emptyset ) \\
+	( liveCause \neq livePresent \implies
+	liveResultReason = \{ publicLiveReason~liveCause \} ) \\
+	( requestAttempted = no \iff liveVariant = liveNotRun ) \\
+	( catalogURLPresent = no \iff liveCause \in
+	\{ liveInvalidInput, liveObservationFailed, liveRouteUnmanaged,
+	liveLocalFailed, liveCancelledBeforeObservation \} ) \\
+	( modelPresent = \{ yes \} \iff liveCause = livePresent ) \\
+	( modelPresent = \{ no \} \iff liveCause = liveModelAbsent ) \\
+	liveCause \notin \{ livePresent, liveModelAbsent \} \implies
+	modelPresent = \emptyset \\
+	liveFindingCodes = liveCodes~liveCause
+\end{schema}
+
+\begin{theorem}{LiveProducerTotalExclusive}
+	\forall LiveTerminal @
+	\# \{ v : LiveVariant | v = liveProducer~liveCause \} = 1
+\end{theorem}
+
+\begin{schema}{Finding}
+	findingCode : FindingCode \\
+	findingPhase : Phase \\
+	findingField : \power JSONPointer
+	\where
+	\# findingField \leq 1 \\
+	findingPhase \in allowedPhases~findingCode
+\end{schema}
+
+\begin{schema}{Warning}
+	warningCode : WarningCode \\
+	warningPhase : Phase \\
+	warningConflicts : \power JSONPointer
+	\where
+	warningCode = wRouteOverwrite \implies warningPhase = writePhase \land \\
+	\t1 warningConflicts \neq \emptyset \\
+	warningCode = wInsecureHTTP \implies \\
+	\t1 warningPhase \in \{ inputPhase, livePhase \} \land
+	warningConflicts = \emptyset
+\end{schema}
+
+\begin{schema}{Residual}
+	residualPath : Path \\
+	residualState : ResidualState \\
+	crashPresence : CrashPresence
+	\where
+	residualState = deletionUnconfirmed \implies crashPresence = presenceUncertain
+\end{schema}
+
+\begin{schema}{StatusTerminal}
+	LocalResult \\
+	statusReportFailed : Bool
+\end{schema}
+
+\begin{schema}{StatusObservedProducer}
+	StatusTerminal
+	\where
+	localCause \in \{ localUnmanaged, localCoherent \} \land
+	statusReportFailed = no
+\end{schema}
+
+\begin{schema}{StatusRefusedProducer}
+	StatusTerminal
+	\where
+	localCause = localInvalid \land statusReportFailed = no
+\end{schema}
+
+\begin{schema}{StatusFailedProducer}
+	StatusTerminal
+	\where
+	\lnot StatusObservedProducer \land \lnot StatusRefusedProducer
+\end{schema}
+
+\begin{schema}{StatusResult}
+	StatusTerminal \\
+	statusVariant : StatusVariant \\
+	statusFindingCodes : \power FindingCode
+	\where
+	( statusVariant = statusObserved \iff StatusObservedProducer ) \\
+	( statusVariant = statusRefused \iff StatusRefusedProducer ) \\
+	( statusVariant = statusFailed \iff StatusFailedProducer ) \\
+	statusReportFailed = no \implies
+	statusFindingCodes = localFindingCodes \\
+	statusReportFailed = yes \implies
+	statusFindingCodes = localFindingCodes \cup \{ eReport \}
+\end{schema}
+
+\begin{theorem}{StatusProducerTotalExclusive}
+	\forall StatusTerminal @ \\
+	\# \{ v : StatusVariant |
+	( v = statusObserved \land StatusObservedProducer ) \lor
+	( v = statusRefused \land StatusRefusedProducer ) \lor
+	( v = statusFailed \land StatusFailedProducer ) \} = 1
+\end{theorem}
+
+\begin{schema}{VerifyTerminal}
+	LocalResult \\
+	LiveResult \\
+	verifyReportFailed : Bool
+	\where
+	localCause = localInvalid \iff liveCause = liveInvalidInput \\
+	localCause \in \{ localAbsent, localUnreadable, localMalformed \}
+	\iff liveCause = liveObservationFailed \\
+	localCause = localCancelled \iff liveCause = liveCancelledBeforeObservation \\
+	localCause = localUnmanaged \iff liveCause = liveRouteUnmanaged \\
+	localCause = localIncoherent \iff liveCause = liveLocalFailed \\
+	localCause = localCoherent \iff liveCause \notin
+	\{ liveInvalidInput, liveObservationFailed, liveRouteUnmanaged,
+	liveLocalFailed, liveCancelledBeforeObservation \}
+\end{schema}
+
+\begin{schema}{VerifyPassedProducer}
+	VerifyTerminal
+	\where
+	localCause = localCoherent \land liveCause = livePresent \land
+	verifyReportFailed = no
+\end{schema}
+
+\begin{schema}{VerifyRefusedProducer}
+	VerifyTerminal
+	\where
+	localCause = localInvalid \land liveCause = liveInvalidInput \land
+	verifyReportFailed = no
+\end{schema}
+
+\begin{schema}{VerifyFailedProducer}
+	VerifyTerminal
+	\where
+	\lnot VerifyPassedProducer \land \lnot VerifyRefusedProducer
+\end{schema}
+
+\begin{schema}{VerifyResultPublic}
+	VerifyTerminal \\
+	verifyVariant : VerifyVariant \\
+	verifyFindingCodes : \power FindingCode
+	\where
+	( verifyVariant = verifyPassed \iff VerifyPassedProducer ) \\
+	( verifyVariant = verifyRefused \iff VerifyRefusedProducer ) \\
+	( verifyVariant = verifyFailed \iff VerifyFailedProducer ) \\
+	verifyReportFailed = no \implies verifyFindingCodes =
+	localFindingCodes \cup liveFindingCodes \\
+	verifyReportFailed = yes \implies verifyFindingCodes =
+	localFindingCodes \cup liveFindingCodes \cup \{ eReport \}
+\end{schema}
+
+\begin{theorem}{VerifyProducerTotalExclusive}
+	\forall VerifyTerminal @ \\
+	\# \{ v : VerifyVariant |
+	( v = verifyPassed \land VerifyPassedProducer ) \lor
+	( v = verifyRefused \land VerifyRefusedProducer ) \lor
+	( v = verifyFailed \land VerifyFailedProducer ) \} = 1
+\end{theorem}
+
+The local classification is total: invalid input/cancellation before observation
+is not-run; missing/unreadable/malformed input fails; a supported document whose
+default does not select Bifrost is unmanaged; a selected but invalid Bifrost
+route is incoherent; only the exact managed projection is coherent.  Status
+succeeds for unmanaged or coherent state and never performs live work.
+
+Verify's ordered gates are input, observation, managed-route classification,
+local coherence, HTTP authorization, credential validation, and request.  The
+first blocked gate determines the live not-run reason.  Local failure never
+reads the credential or attempts a request.  A passed verify requires both
+local and live pass; not-run can never pass.
+
+Live verification resolves \texttt{BIFROST\_VK} in memory, validates it as a
+header value, and makes exactly one \texttt{GET R/v1/models} with bearer auth.
+The client follows no redirects, retries nothing, has a ten-second total
+deadline and four-MiB decoded-body limit, ignores environment proxies, and uses
+a fresh transport without implicit retry.  A valid response is a successful
+object containing a \texttt{data} array of objects with string \texttt{id}; the
+selected token must occur exactly.  Authentication, redirect, timeout,
+unreachable, other HTTP, invalid catalog, and model absence stay distinct.
+
+\section{Completed route results and exhaustive producers}
+
+An internal terminal event has an immutable class, code, and phase.  Class is
+producer metadata, not a public JSON field.  Refusals are policy/format/shape
+rejections before writing; execution, cancellation, cleanup, durability, and
+reporting errors are operational even when no mutation happened.
+
+\begin{zed}
+	EventClass ::= refusalClass | operationalClass
+\end{zed}
+
+% POINTS-CHECK BEGIN definitions.events definition
+\begin{zed}
+	RouteEvent ::= iUsage | iHarness | iSource | iModel | iURL | iHTTP | \\
+	\t1 lParent | lUnsafe | lBusy | lUnreadable | lFormat | lShape | lBackupExists | \\
+	\t1 wCandidate | wConfigStage | wBackupStage | wBackupCollision | wBackupPublish | \\
+	\t1 wBackupCleanup | wChanged | wAbsentOccupied | wConfigPublish | dConfigSync | \\
+	\t1 cUnlink | cReplacement | cInspect | cDeleteSync | cRelease | \\
+	\t1 xBeforeInput | xBeforeWrite | xDuringWrite | xAfterCommit | \\
+	\t1 oReportBefore | oReportAfter
+\end{zed}
+% POINTS-CHECK END definitions.events
+
+\begin{zed}
+	RouteVariant ::= routeUnchanged | routeCommitted | routeRefused | \\
+	\t1 routeFailedBefore | routeFailedAfter
+\end{zed}
+
+\begin{axdef}
+	refusalEvents, operationalEvents : \power RouteEvent \\
+	eventClass : RouteEvent \fun EventClass \\
+	eventPhase : RouteEvent \fun Phase \\
+	eventCode : RouteEvent \fun FindingCode
+	\where
+	refusalEvents = \{ iUsage, iHarness, iSource, iModel, iURL, iHTTP,
+	lParent, lUnsafe, lBusy, lFormat, lShape, lBackupExists \} \\
+	operationalEvents = RouteEvent \setminus refusalEvents \\
+	( \forall e : refusalEvents @ eventClass~e = refusalClass ) \\
+	( \forall e : operationalEvents @ eventClass~e = operationalClass ) \\
+	eventPhase~iUsage = inputPhase \\
+	eventPhase~iHarness = inputPhase \\
+	eventPhase~iSource = inputPhase \\
+	eventPhase~iModel = inputPhase \\
+	eventPhase~iURL = inputPhase \\
+	eventPhase~iHTTP = inputPhase \\
+	( \forall e : \{ lParent, lUnsafe, lBusy, lUnreadable, lFormat, lShape,
+	lBackupExists, xBeforeInput, xBeforeWrite \} @ eventPhase~e = localPhase ) \\
+	( \forall e : \{ wCandidate, wConfigStage, wBackupStage, wBackupCollision,
+	wBackupPublish, wBackupCleanup, wChanged, wAbsentOccupied, wConfigPublish,
+	dConfigSync, cUnlink, cReplacement, cInspect, cDeleteSync, cRelease,
+	xDuringWrite, xAfterCommit \} @ eventPhase~e = writePhase ) \\
+	eventPhase~oReportBefore = reportPhase \\
+	eventPhase~oReportAfter = reportPhase \\
+	eventCode~iUsage = eUsage \\
+	eventCode~iHarness = eUnsupportedHarness \\
+	eventCode~iSource = eUnsupportedSource \\
+	eventCode~iModel = eModelNotInFixture \\
+	eventCode~iURL = eBaseURLInvalid \\
+	eventCode~iHTTP = eInsecureHTTP \\
+	eventCode~lParent = eParentMissing \\
+	eventCode~lUnsafe = ePathUnsafe \\
+	eventCode~lBusy = eWriteBusy \\
+	eventCode~lUnreadable = eConfigUnreadable \\
+	eventCode~lFormat = eConfigFormat \\
+	eventCode~lShape = eConfigShape \\
+	eventCode~lBackupExists = eBackupExists \\
+	( \forall e : \{ wCandidate, wConfigStage, wConfigPublish \} @
+	eventCode~e = eConfigWrite ) \\
+	( \forall e : \{ wBackupStage, wBackupPublish \} @
+	eventCode~e = eBackupWrite ) \\
+	eventCode~wBackupCollision = eBackupExists \\
+	eventCode~wChanged = eConfigChanged \\
+	eventCode~wAbsentOccupied = eConfigChanged \\
+	( \forall e : \{ wBackupCleanup, cUnlink, cReplacement, cInspect,
+	cDeleteSync, cRelease \} @ eventCode~e = eCleanup ) \\
+	eventCode~dConfigSync = eDurability \\
+	( \forall e : \{ xBeforeInput, xBeforeWrite, xDuringWrite, xAfterCommit \} @
+	eventCode~e = eCancelled ) \\
+	eventCode~oReportBefore = eReport \\
+	eventCode~oReportAfter = eReport
+\end{axdef}
+
+The event-to-code/phase table is normative:
+
+\begin{center}
+	\begin{tabular}{lll}
+		I1--I6 & usage/harness/source/model/URL/insecure HTTP      & input, refusal, null selection \\
+		L1--L3 & parent/path/lock contention                       & local, refusal, selected       \\
+		L4     & metadata, lock, snapshot, read or close I/O       & local unreadable, operational  \\
+		L5--L7 & strict format, shape, early backup collision      & local, refusal                 \\
+		W1--W3 & candidate/config-stage/backup-stage failure       & write, operational             \\
+		W4--W6 & late collision/publication/backup cleanup         & write, operational             \\
+		W7--W9 & revalidation/no-replace/config publication        & write, operational             \\
+		D1     & config publication sync                           & write durability, operational  \\
+		C1--C5 & unlink/replacement/inspection/delete-sync/release & write cleanup, operational     \\
+		X1--X4 & cancellation at named boundaries                  & local or write, operational    \\
+		O1--O2 & result preparation or delivery                    & report, operational
+	\end{tabular}
+\end{center}
+
+The corresponding public stable codes are, in order,
+\texttt{E\_USAGE}, \texttt{E\_UNSUPPORTED\_HARNESS},
+\texttt{E\_UNSUPPORTED\_SOURCE}, \texttt{E\_MODEL\_NOT\_IN\_FIXTURE},
+\texttt{E\_BASE\_URL\_INVALID}, \texttt{E\_INSECURE\_HTTP},
+\texttt{E\_PARENT\_MISSING}, \texttt{E\_PATH\_UNSAFE},
+\texttt{E\_WRITE\_BUSY}, \texttt{E\_CONFIG\_UNREADABLE},
+\texttt{E\_CONFIG\_FORMAT}, \texttt{E\_CONFIG\_SHAPE},
+\texttt{E\_BACKUP\_EXISTS}, \texttt{E\_CONFIG\_WRITE},
+\texttt{E\_BACKUP\_WRITE}, \texttt{E\_CONFIG\_CHANGED},
+\texttt{E\_DURABILITY}, \texttt{E\_CLEANUP},
+\texttt{E\_CANCELLED}, and \texttt{E\_REPORT}.  Read-only codes have no route
+producer.  In particular old incoherence is repaired, not emitted by route.
+
+Selection becomes non-null exactly when the complete input gate succeeds and is
+never erased.  The gate validates syntax, supported combination, exact fixture,
+absolute lexical config path, root URL, and HTTP authorization.
+
+\begin{schema}{RouteTerminal}
+	events : \power RouteEvent \\
+	inputAccepted, committed, noOp, configSyncAck : Bool \\
+	namespaceMutated : Bool
+	\where
+	( events = \emptyset \implies \\
+	\t1 ( committed = yes \land noOp = no ) \lor
+		( committed = no \land noOp = yes ) ) \\
+	committed = yes \implies inputAccepted = yes \\
+	noOp = yes \implies inputAccepted = yes \land committed = no \\
+	events \cap \{ iUsage, iHarness, iSource, iModel, iURL, iHTTP,
+	xBeforeInput \} \neq \emptyset \implies inputAccepted = no \\
+	events \cap \{ lParent, lUnsafe, lBusy, lUnreadable, lFormat, lShape,
+	lBackupExists, wCandidate, wConfigStage, wBackupStage,
+	wBackupCollision, wBackupPublish, wBackupCleanup, wChanged,
+	wAbsentOccupied, wConfigPublish, dConfigSync, cUnlink, cReplacement,
+	cInspect, cDeleteSync, cRelease, xBeforeWrite, xDuringWrite,
+	xAfterCommit \} \neq \emptyset \implies inputAccepted = yes \\
+	events \cap \{ xAfterCommit, oReportAfter, dConfigSync \} \neq \emptyset
+	\implies committed = yes \\
+	oReportBefore \in events \implies committed = no \\
+	noOp = yes \land events \neq \emptyset \implies
+	events \cap operationalEvents \neq \emptyset \\
+	configSyncAck = yes \implies committed = yes \\
+	committed = yes \land configSyncAck = no \implies dConfigSync \in events \\
+	dConfigSync \in events \implies committed = yes \\
+	( events \neq \emptyset \land events \subseteq refusalEvents \implies \\
+	\t1 committed = no \land namespaceMutated = no )
+\end{schema}
+
+\begin{schema}{RouteUnchangedProducer}
+	RouteTerminal
+	\where
+	committed = no \land events = \emptyset \land noOp = yes
+\end{schema}
+
+\begin{schema}{RouteCommittedProducer}
+	RouteTerminal
+	\where
+	committed = yes \land events = \emptyset
+\end{schema}
+
+\begin{schema}{RouteRefusedProducer}
+	RouteTerminal
+	\where
+	committed = no \land events \neq \emptyset \land
+	events \cap operationalEvents = \emptyset
+\end{schema}
+
+\begin{schema}{RouteFailedBeforeProducer}
+	RouteTerminal
+	\where
+	committed = no \land events \neq \emptyset \land
+	events \cap operationalEvents \neq \emptyset
+\end{schema}
+
+\begin{schema}{RouteFailedAfterProducer}
+	RouteTerminal
+	\where
+	committed = yes \land events \neq \emptyset
+\end{schema}
+
+\begin{schema}{CompletedRoute}
+	RouteTerminal \\
+	variant : RouteVariant \\
+	durability : Durability
+	\where
+	( variant = routeUnchanged \iff RouteUnchangedProducer ) \\
+	( variant = routeCommitted \iff RouteCommittedProducer ) \\
+	( variant = routeRefused \iff RouteRefusedProducer ) \\
+	( variant = routeFailedBefore \iff RouteFailedBeforeProducer ) \\
+	( variant = routeFailedAfter \iff RouteFailedAfterProducer ) \\
+	( committed = no \iff durability = notApplicable ) \\
+	( committed = yes \land configSyncAck = yes \iff durability = confirmed ) \\
+	( committed = yes \land configSyncAck = no \iff durability = uncertain )
+\end{schema}
+
+\begin{schema}{RoutePublicResult}
+	CompletedRoute \\
+	selectionPresent, conflictsPresent : Bool \\
+	backupPaths : \power Path \\
+	warningCodes : \power WarningCode \\
+	findingCodes : \power FindingCode \\
+	residualPaths : \power Path
+	\where
+	\# backupPaths \leq 1 \\
+	( selectionPresent = yes \iff inputAccepted = yes ) \\
+	findingCodes = eventCode \limg events \rimg \\
+	( conflictsPresent = yes \land committed = yes \iff
+	wRouteOverwrite \in warningCodes ) \\
+	variant = routeUnchanged \implies backupPaths = \emptyset \land \\
+	\t1 findingCodes = \emptyset \land residualPaths = \emptyset \\
+	variant = routeCommitted \implies findingCodes = \emptyset \land \\
+	\t1 residualPaths = \emptyset \\
+	variant = routeRefused \implies backupPaths = \emptyset \land \\
+	\t1 residualPaths = \emptyset \land namespaceMutated = no \\
+	committed = yes \land conflictsPresent = yes \implies backupPaths \neq \emptyset \\
+	residualPaths \neq \emptyset \implies eCleanup \in findingCodes
+\end{schema}
+
+\begin{theorem}{RouteProducerTotalExclusive}
+	\forall RouteTerminal @ \\
+	\t1 \# \{ v : RouteVariant |
+	\t2 ( v = routeUnchanged \land RouteUnchangedProducer ) \lor
+	\t2 ( v = routeCommitted \land RouteCommittedProducer ) \lor
+	\t2 ( v = routeRefused \land RouteRefusedProducer ) \lor
+	\t2 ( v = routeFailedBefore \land RouteFailedBeforeProducer ) \lor
+	\t2 ( v = routeFailedAfter \land RouteFailedAfterProducer ) \} = 1
+\end{theorem}
+
+\begin{theorem}{RouteDiscriminatorExistsUnique}
+	\forall RouteTerminal @ \exists_1 v : RouteVariant @ \\
+	\t1 ( v = routeUnchanged \land RouteUnchangedProducer ) \lor
+	\t1 ( v = routeCommitted \land RouteCommittedProducer ) \lor
+	\t1 ( v = routeRefused \land RouteRefusedProducer ) \lor
+	\t1 ( v = routeFailedBefore \land RouteFailedBeforeProducer ) \lor
+	\t1 ( v = routeFailedAfter \land RouteFailedAfterProducer )
+\end{theorem}
+
+\begin{theorem}{MissingConfigSyncProducesDurabilityEvent}
+	\forall RouteTerminal @ committed = yes \land configSyncAck = no
+	\implies dConfigSync \in events
+\end{theorem}
+
+\begin{theorem}{HistoricalConfigSyncFailureCanBeLaterConfirmed}
+	\exists CompletedRoute @ dConfigSync \in events \land
+	configSyncAck = yes \land durability = confirmed \land
+	variant = routeFailedAfter
+\end{theorem}
+
+The biconditionals are the producer, not loose constructor shapes.  They prove
+totality by partitioning first on commit, then findings, then operational event,
+and prove pairwise exclusivity directly.  Every named event is in exactly one
+event class.  Reporting failure adds an operational event and therefore cannot
+retain a success/refusal variant.  A syntax refusal delivered successfully exits
+2; successful route exits 0; all other route results, including reporting
+failure after usage error, exit 1.
+
+The route result carries schema version, command, explicit-file scope, context,
+nullable selection and owned backup path, warnings, findings, and residuals.
+Unchanged is uncommitted/not-applicable with no findings or residue.  Committed
+is committed/confirmed with no findings or residue.  Refused has no namespace
+mutation, backup, or residue.  Operational pre-commit failure may have no
+mutation or may retain owned residue.  Post-commit failure reports confirmed or
+uncertain durability truthfully.  Selection describes validated request, not
+installation success.
+
+Exactly one \texttt{W\_ROUTE\_OVERWRITE} is emitted iff a conflicting candidate
+commits; it includes the exact backup path and sorted conflict pointers and
+survives later failure.  \texttt{W\_INSECURE\_HTTP} occurs at most once after
+the relevant authorization gate and survives later failure.  Status emits no
+warnings.  A committed backup is a retained result, never residue.
+
+Residuals are a closed union: retained owned name after failed unlink,
+deletion-unconfirmed after visible unlink without directory-sync evidence,
+replacement identity left untouched, or uninspected path.  Crash presence is
+owned-present, owned-absent, or uncertain.  Every residue entails cleanup error;
+success has none.  A detected anomaly remains reportable even if later sync
+proves the owned identity absent.
+
+\section{Filesystem publication and paired crash model}
+
+The executable Increment~1 transaction library appears after the following
+historical model.  The historical three-slot draft is retained temporarily as
+review context but is not part of the active specification or any generated
+checker projection.
+
+\begin{verbatim}
+	The filesystem model uses finite carriers under model-checker bounds.  A file
+	identity has one image even when multiple paths hard-link it.
+
+	Only strict JSON objects are accepted: no comments, trailing commas, duplicate
+	decoded keys, multiple documents, non-whitespace trailing data, non-object root,
+	invalid UTF-8, or malformed strings.  Original bytes are retained separately
+	for backup.  The explicit immediate parent must exist, be effective-user-owned,
+	and not group/other writable; ancestors are user/root controlled and not
+	untrusted-writable.  Descriptor-relative access rejects symlink traversal.
+	Existing targets are regular, effective-user-owned, link-count one, owner
+	read/write, non-executable, without special or group/other-write bits, and with
+	supported mode-equivalent access metadata.  Incompatible ACL/default-ACL effects
+	fail closed.  New config mode is 0600; replacement and backup preserve the
+	supported original mode.  Timestamp, inode, xattr, and arbitrary ACL
+	preservation are not promised.
+
+	Route takes a nonblocking exclusive parent-directory advisory lock from snapshot
+	through cleanup; readers share-lock only while snapshotting.  Revalidation before
+	commit compares target existence, identity, exact bytes, ownership, link count,
+	mode, and supported access metadata.  Mismatch retains the external edit and
+	produces config-changed.  The guarantee excludes non-cooperating mutation in the
+	final revalidate/publication window and same-UID hostile interference: rename is
+	not compare-and-swap.
+
+	For config $P$, the final backup is exactly $P$ plus
+	\texttt{.points.bak}.  Sibling stages are
+	\texttt{.<base>.points-config.<nonce>.tmp} and
+	\texttt{.<base>.points-backup.<nonce>.tmp}; a nonce is 128 random bits rendered
+	as 32 lower-case hexadecimal digits, with at most 32 exclusive-create attempts.
+	Stages may be partial, but publication requires complete bytes, established and
+	verified mode/access metadata, successful file sync, and successful close.
+
+	A required backup is staged from the exact snapshot, exclusively hard-linked at
+	the final backup path, parent-synced, then has its stage name unlinked and that
+	deletion parent-synced.  Only then may config commit.  Anything at the final
+	backup path blocks this sequence; nothing there is followed, reused, rotated,
+	truncated, or replaced.  Existing config commits by same-directory atomic
+	rename.  Initially absent config commits by exclusive hard link.  The successful
+	publication syscall sets committed immediately; subsequent parent sync,
+	config-stage cleanup, deletion sync, and reporting are distinct outcomes.
+
+	% historical \begin{zed}
+		EntryRef ::= file \ldata Identity \rdata | symlinkRef | directoryRef | specialRef \\
+		Namespace == Path \pfun EntryRef \\
+		CleanupObservation ::= noCleanupNote | unlinkFailed | identityChanged | inspectFailed \\
+		BackupProgress ::= backupNone | backupStaged | backupLinked | linkSynced | \\
+		\t1 stageRemoved | backupReady \\
+		PendingCount ::= pendingZero | pendingOne | pendingTwo | pendingThree \\
+		TransactionPhase ::= validating | staging | publishingBackup | revalidating | \\
+		\t1 publishingConfig | confirming | cleaning | reporting | aborting | finished \\
+		Life ::= running | ended \\
+		ReportState ::= reportPending | reportDelivered | reportFailed | processDead
+	\end{zed}
+
+	% historical \begin{axdef}
+		deltaRemove : Delta \fun \power Path \\
+		deltaPut : Delta \fun Namespace \\
+		applyDelta : Namespace \cross Delta \fun Namespace \\
+		refs : Namespace \fun \power Identity \\
+		emptyBytes : ByteString \\
+		bytePrefix : ByteString \rel ByteString \\
+		imageBytes : FileImage \fun ByteString \\
+		imageMode : FileImage \fun Mode \\
+		imageOwner : FileImage \fun Owner \\
+		imageState : FileImage \fun ContentState
+		\where
+		\forall n : Namespace; d : Delta @ \\
+		\t1 applyDelta~(n,d) = (deltaRemove~d \ndres n) \oplus deltaPut~d \\
+		\forall n : Namespace @ refs~n = \\
+		\t1 \{ id : Identity | \exists p : \dom n @ n~p = file~id \} \\
+		\forall b : ByteString @ emptyBytes \mapsto b \in bytePrefix \\
+		\forall b : ByteString @ b \mapsto b \in bytePrefix \\
+		\forall a, b : ByteString @
+		a \mapsto b \in bytePrefix \land b \mapsto a \in bytePrefix \implies a = b \\
+		\forall a, b, c : ByteString @
+		a \mapsto b \in bytePrefix \land b \mapsto c \in bytePrefix
+		\implies a \mapsto c \in bytePrefix \\
+		\forall b : ByteString; m : Mode; o : Owner; c : ContentState @ \\
+		\t1 \exists_1 i : FileImage @ imageBytes~i = b \land imageMode~i = m \land \\
+		\t2 imageOwner~i = o \land imageState~i = c \\
+		\forall i, j : FileImage @ i = j \iff \\
+		\t1 imageBytes~i = imageBytes~j \land imageMode~i = imageMode~j \land \\
+		\t1 imageOwner~i = imageOwner~j \land imageState~i = imageState~j
+	\end{axdef}
+
+	$FileImage$ is an initial finite carrier because ProB rejects the equivalent
+	late product/record declarations in this document.  The four total selectors,
+	the unique existence of one atom for every field tuple, and selector
+	extensionality make it a lossless finite record abstraction: bytes, mode, owner,
+	and content state can neither be omitted nor aliased.  $bytePrefix$ is the
+	bounded actual-prefix order supplied by a checker valuation; $emptyBytes$ is its
+	least element.
+
+	% historical \begin{schema}{Transaction}
+		visibleNS, durableNS : Namespace \\
+		pendingCount : PendingCount \\
+		pendingDeltaOne, pendingDeltaTwo, pendingDeltaThree : Delta \\
+		visibleImages, syncedImages, intendedImages, snapshotImages :
+		Identity \pfun FileImage \\
+		dirtyChoices : Identity \pfun \power FileImage \\
+		stageIDs, sealedIDs, closeOK : \power Identity \\
+		owned, cleanupDue, cleanupPending, retainedResults : Path \pfun Identity \\
+		cleanupNotes : Path \pfun CleanupObservation \\
+		published : \power ( Path \cross Identity ) \\
+		publicationImages : Identity \pfun FileImage \\
+		configPath, backupPath, configStage, backupStage : Path \\
+		candidateID : Identity \\
+		backupIDs : \power Identity \\
+		expectedConfig : \power Identity \\
+		conflicts : \power JSONPointer \\
+		phase : TransactionPhase \\
+		committed, configSyncAck, cancelled, lockHeld : Bool \\
+		backupProgress : BackupProgress \\
+		life : Life \\
+		reportState : ReportState
+		\where
+		\# \{ configPath, backupPath, configStage, backupStage \} = 4 \\
+		\# expectedConfig \leq 1 \\
+		candidateID \notin backupIDs \\
+		cleanupDue \subseteq owned \\
+		cleanupPending \subseteq cleanupDue \\
+		retainedResults \subseteq owned \\
+		\dom cleanupDue \cap \dom retainedResults = \emptyset \\
+		\dom syncedImages \cap \dom dirtyChoices = \emptyset \\
+		( \forall choices : \ran dirtyChoices @ choices \neq \emptyset ) \\
+		( \forall id : \dom intendedImages @
+		imageState~(intendedImages~id) = complete ) \\
+		( \forall id : \dom dirtyChoices @ \\
+		\t1 id \in \dom visibleImages \cap \dom intendedImages \land \\
+		\t1 imageBytes~(visibleImages~id) \mapsto
+		imageBytes~(intendedImages~id) \in bytePrefix \land \\
+		\t1 imageMode~(visibleImages~id) = imageMode~(intendedImages~id) \land \\
+		\t1 imageOwner~(visibleImages~id) = imageOwner~(intendedImages~id) \land \\
+		\t1 ( imageState~(visibleImages~id) = complete \iff \\
+		\t2 imageBytes~(visibleImages~id) = imageBytes~(intendedImages~id) \land \\
+		\t2 imageMode~(visibleImages~id) = imageMode~(intendedImages~id) \land
+		imageOwner~(visibleImages~id) = imageOwner~(intendedImages~id) ) \land \\
+		\t1 dirtyChoices~id = \{ i : FileImage | \\
+		\t2 imageBytes~i \mapsto imageBytes~(visibleImages~id) \in bytePrefix \land \\
+		\t2 imageMode~i = imageMode~(intendedImages~id) \land \\
+		\t2 imageOwner~i = imageOwner~(intendedImages~id) \land \\
+		\t2 ( imageState~i = complete \iff \\
+		\t3 imageBytes~i = imageBytes~(intendedImages~id) \land
+		imageMode~i = imageMode~(intendedImages~id) \land \\
+		\t3 imageOwner~i = imageOwner~(intendedImages~id) ) @ i \} ) \\
+		refs~visibleNS \cup refs~durableNS
+		\subseteq \dom syncedImages \cup \dom dirtyChoices \\
+		pendingCount \in \{ pendingOne, pendingTwo, pendingThree \} \implies
+		refs~(deltaPut~pendingDeltaOne) \subseteq
+		\dom syncedImages \cup \dom dirtyChoices \\
+		pendingCount \in \{ pendingTwo, pendingThree \} \implies
+		refs~(deltaPut~pendingDeltaTwo) \subseteq
+		\dom syncedImages \cup \dom dirtyChoices \\
+		pendingCount = pendingThree \implies
+		refs~(deltaPut~pendingDeltaThree) \subseteq
+		\dom syncedImages \cup \dom dirtyChoices \\
+		( \forall p : Path; id : Identity | (p,id) \in published @ \\
+		\t1 id \in \dom syncedImages \cap \dom publicationImages \land \\
+		\t1 syncedImages~id = publicationImages~id \land \\
+		\t1 imageState~(publicationImages~id) = complete ) \\
+		backupIDs \subseteq \dom snapshotImages \\
+		( \forall id : backupIDs \cap \dom publicationImages @ \\
+		\t1 publicationImages~id = snapshotImages~id ) \\
+		( \forall id : \dom publicationImages @
+		imageState~(publicationImages~id) = complete ) \\
+		life = running \land committed = yes \land conflicts \neq \emptyset \implies \\
+		\t1 backupPath \in \dom retainedResults \land backupPath \notin \dom cleanupDue
+	\end{schema}
+
+	The checker never quantifies over every sequence or its powerset.  At most three
+	pending namespace deltas are represented by explicit finite slots.  The
+	following relation appends one delta and has no recursive definition.
+
+	% historical \begin{schema}{AppendPendingDelta}
+		pendingCount, pendingCount' : PendingCount \\
+		pendingDeltaOne, pendingDeltaTwo, pendingDeltaThree : Delta \\
+		pendingDeltaOne', pendingDeltaTwo', pendingDeltaThree' : Delta \\
+		delta? : Delta
+		\where
+		( pendingCount = pendingZero \land pendingCount' = pendingOne \land
+		pendingDeltaOne' = delta? \land
+		pendingDeltaTwo' = pendingDeltaTwo \land
+		pendingDeltaThree' = pendingDeltaThree ) \lor \\
+		( pendingCount = pendingOne \land pendingCount' = pendingTwo \land
+		pendingDeltaOne' = pendingDeltaOne \land
+		pendingDeltaTwo' = delta? \land
+		pendingDeltaThree' = pendingDeltaThree ) \lor \\
+		( pendingCount = pendingTwo \land pendingCount' = pendingThree \land
+		pendingDeltaOne' = pendingDeltaOne \land
+		pendingDeltaTwo' = pendingDeltaTwo \land
+		pendingDeltaThree' = delta? )
+	\end{schema}
+
+	Frame schemas make omitted effects impossible.  Every transition below includes
+	the frames for untouched groups and explicitly assigns every component in each
+	changed group.
+
+	% historical \begin{schema}{TxnStaticFrame}
+		\Delta Transaction
+		\where
+		configPath' = configPath \land backupPath' = backupPath \land
+		configStage' = configStage \land backupStage' = backupStage \\
+		candidateID' = candidateID \land backupIDs' = backupIDs \land
+		expectedConfig' = expectedConfig \land conflicts' = conflicts
+	\end{schema}
+
+	% historical \begin{schema}{TxnNamespaceFrame}
+		\Delta Transaction
+		\where
+		visibleNS' = visibleNS \land durableNS' = durableNS \land
+		pendingCount' = pendingCount \\
+		pendingDeltaOne' = pendingDeltaOne \land
+		pendingDeltaTwo' = pendingDeltaTwo \land
+		pendingDeltaThree' = pendingDeltaThree
+	\end{schema}
+
+	% historical \begin{schema}{TxnImageFrame}
+		\Delta Transaction
+		\where
+		visibleImages' = visibleImages \land syncedImages' = syncedImages \land
+		intendedImages' = intendedImages \land snapshotImages' = snapshotImages \\
+		dirtyChoices' = dirtyChoices \land stageIDs' = stageIDs \land
+		sealedIDs' = sealedIDs \land closeOK' = closeOK \\
+		published' = published \land publicationImages' = publicationImages
+	\end{schema}
+
+	% historical \begin{schema}{TxnOwnershipFrame}
+		\Delta Transaction
+		\where
+		owned' = owned \land cleanupDue' = cleanupDue \land
+		cleanupPending' = cleanupPending \land
+		retainedResults' = retainedResults \land cleanupNotes' = cleanupNotes
+	\end{schema}
+
+	% historical \begin{schema}{TxnControlFrame}
+		\Delta Transaction
+		\where
+		phase' = phase \land committed' = committed \land
+		configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+		lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+		life' = life \land reportState' = reportState
+	\end{schema}
+
+	% historical \begin{schema}{CreateStage}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		stage? : Path; id? : Identity; initialImage? : FileImage; delta? : Delta
+		\where
+		life = running \land cancelled = no \land
+		phase \in \{ validating, staging \} \land lockHeld = yes \\
+		stage? \in \{ configStage, backupStage \} \land
+		stage? \notin \dom visibleNS \cup \dom owned \\
+		( stage? = configStage \implies id? = candidateID ) \\
+		( stage? = backupStage \implies id? \in backupIDs ) \\
+		id? \in \dom intendedImages \\
+		id? \notin refs~visibleNS \cup refs~durableNS \cup \ran owned \cup
+		\dom visibleImages \cup \dom syncedImages \cup \dom dirtyChoices \cup
+		stageIDs \cup \dom publicationImages \\
+		imageBytes~initialImage? = emptyBytes \land
+		imageMode~initialImage? = imageMode~(intendedImages~id?) \land \\
+		imageOwner~initialImage? = imageOwner~(intendedImages~id?) \land
+		( imageState~initialImage? = complete \iff \\
+		\t1 imageBytes~initialImage? = imageBytes~(intendedImages~id?) \land
+		imageMode~initialImage? = imageMode~(intendedImages~id?) \land \\
+		\t1 imageOwner~initialImage? = imageOwner~(intendedImages~id?) ) \\
+		( id? \in backupIDs \implies id? \in \dom snapshotImages \land
+		intendedImages~id? = snapshotImages~id? ) \\
+		deltaRemove~delta? = \emptyset \land
+		deltaPut~delta? = \{ stage? \mapsto file~id? \} \\
+		AppendPendingDelta \\
+		visibleNS' = applyDelta~(visibleNS,delta?) \land durableNS' = durableNS \\
+		visibleImages' = visibleImages \oplus \{ id? \mapsto initialImage? \} \\
+		syncedImages' = syncedImages \land intendedImages' = intendedImages \land
+		snapshotImages' = snapshotImages \\
+		dirtyChoices' = dirtyChoices \oplus \{ id? \mapsto
+		\{ i : FileImage | \\
+		\t1 imageBytes~i \mapsto imageBytes~initialImage? \in bytePrefix \land \\
+		\t1 imageMode~i = imageMode~(intendedImages~id?) \land \\
+		\t1 imageOwner~i = imageOwner~(intendedImages~id?) \land \\
+		\t1 ( imageState~i = complete \iff \\
+		\t2 imageBytes~i = imageBytes~(intendedImages~id?) \land
+		imageMode~i = imageMode~(intendedImages~id?) \land \\
+		\t2 imageOwner~i = imageOwner~(intendedImages~id?) ) @ i \} \} \\
+		stageIDs' = stageIDs \cup \{ id? \} \land sealedIDs' = sealedIDs \land
+		closeOK' = closeOK \land published' = published \land
+		publicationImages' = publicationImages \\
+		owned' = owned \oplus \{ stage? \mapsto id? \} \land
+		cleanupDue' = cleanupDue \oplus \{ stage? \mapsto id? \} \\
+		cleanupPending' = cleanupPending \land retainedResults' = retainedResults \land
+		cleanupNotes' = cleanupNotes \\
+		phase' = staging \land committed' = committed \land
+		configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+		lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+		life' = life \land reportState' = reportState
+	\end{schema}
+
+	% historical \begin{schema}{WriteStage}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnNamespaceFrame \\
+		TxnOwnershipFrame \\
+		TxnControlFrame \\
+		id? : Identity; image? : FileImage
+		\where
+		life = running \land cancelled = no \land phase = staging \land
+		lockHeld = yes \\
+		id? \in ( stageIDs \setminus sealedIDs ) \cap \dom dirtyChoices \cap
+		\dom intendedImages \cap \dom visibleImages \\
+		imageBytes~(visibleImages~id?) \mapsto imageBytes~image? \in bytePrefix \land \\
+		imageBytes~image? \mapsto imageBytes~(intendedImages~id?) \in bytePrefix \\
+		imageMode~image? = imageMode~(intendedImages~id?) \land
+		imageOwner~image? = imageOwner~(intendedImages~id?) \\
+		( imageState~image? = complete \iff \\
+		\t1 imageBytes~image? = imageBytes~(intendedImages~id?) \land
+		imageMode~image? = imageMode~(intendedImages~id?) \land \\
+		\t1 imageOwner~image? = imageOwner~(intendedImages~id?) ) \\
+		visibleImages' = visibleImages \oplus \{ id? \mapsto image? \} \\
+		syncedImages' = syncedImages \land intendedImages' = intendedImages \land
+		snapshotImages' = snapshotImages \\
+		dirtyChoices' = dirtyChoices \oplus \{ id? \mapsto
+		\{ i : FileImage | \\
+		\t1 imageBytes~i \mapsto imageBytes~image? \in bytePrefix \land \\
+		\t1 imageMode~i = imageMode~(intendedImages~id?) \land \\
+		\t1 imageOwner~i = imageOwner~(intendedImages~id?) \land \\
+		\t1 ( imageState~i = complete \iff \\
+		\t2 imageBytes~i = imageBytes~(intendedImages~id?) \land
+		imageMode~i = imageMode~(intendedImages~id?) \land \\
+		\t2 imageOwner~i = imageOwner~(intendedImages~id?) ) @ i \} \} \\
+		stageIDs' = stageIDs \land sealedIDs' = sealedIDs \land closeOK' = closeOK \\
+		published' = published \land publicationImages' = publicationImages
+	\end{schema}
+
+	% historical \begin{schema}{FileSyncStage}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnNamespaceFrame \\
+		TxnOwnershipFrame \\
+		TxnControlFrame \\
+		id? : Identity
+		\where
+		life = running \land cancelled = no \land phase = staging \land
+		lockHeld = yes \\
+		id? \in stageIDs \cap \dom visibleImages \cap \dom intendedImages \\
+		visibleImages~id? = intendedImages~id? \land
+		imageState~(intendedImages~id?) = complete \\
+		visibleImages' = visibleImages \land
+		syncedImages' = syncedImages \oplus \{ id? \mapsto intendedImages~id? \} \\
+		intendedImages' = intendedImages \land snapshotImages' = snapshotImages \\
+		dirtyChoices' = \{ id? \} \ndres dirtyChoices \\
+		stageIDs' = stageIDs \land sealedIDs' = sealedIDs \cup \{ id? \} \land
+		closeOK' = closeOK \land published' = published \land
+		publicationImages' = publicationImages
+	\end{schema}
+
+	% historical \begin{schema}{CloseStage}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnNamespaceFrame \\
+		TxnOwnershipFrame \\
+		id? : Identity
+		\where
+		life = running \land cancelled = no \land phase = staging \land
+		lockHeld = yes \\
+		id? \in sealedIDs \cap stageIDs \\
+		visibleImages' = visibleImages \land syncedImages' = syncedImages \land
+		intendedImages' = intendedImages \land snapshotImages' = snapshotImages \land
+		dirtyChoices' = dirtyChoices \land stageIDs' = stageIDs \land
+		sealedIDs' = sealedIDs \land closeOK' = closeOK \cup \{ id? \} \\
+		published' = published \land publicationImages' = publicationImages \\
+		phase' = phase \land committed' = committed \land
+		configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+		lockHeld' = lockHeld \\
+		( id? \in backupIDs \implies backupProgress' = backupStaged ) \\
+		( id? \notin backupIDs \implies backupProgress' = backupProgress ) \\
+		life' = life \land reportState' = reportState
+	\end{schema}
+
+	Exclusive backup publication uses the designated snapshot identity and the
+	exact synced visible image.  It creates destination ownership and cleanup
+	permission while retaining the source-stage obligation.
+
+	% historical \begin{schema}{PublishBackupOwnership}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		id? : Identity; delta? : Delta
+		\where
+		life = running \land cancelled = no \land phase = staging \land
+		lockHeld = yes \land backupProgress = backupStaged \\
+		id? \in backupIDs \cap sealedIDs \cap closeOK \\
+		id? \in \dom syncedImages \cap \dom intendedImages \cap
+		\dom snapshotImages \cap \dom visibleImages \\
+		backupStage \in \dom visibleNS \cap \dom cleanupDue \land
+		visibleNS~backupStage = file~id? \land cleanupDue~backupStage = id? \\
+		visibleImages~id? = syncedImages~id? \land
+		syncedImages~id? = intendedImages~id? \land
+		intendedImages~id? = snapshotImages~id? \\
+		imageState~(snapshotImages~id?) = complete \\
+		backupPath \notin \dom visibleNS \\
+		deltaRemove~delta? = \emptyset \land
+		deltaPut~delta? = \{ backupPath \mapsto file~id? \} \\
+		AppendPendingDelta \\
+		visibleNS' = applyDelta~(visibleNS,delta?) \land durableNS' = durableNS \\
+		visibleImages' = visibleImages \land syncedImages' = syncedImages \land
+		intendedImages' = intendedImages \land snapshotImages' = snapshotImages \land
+		dirtyChoices' = dirtyChoices \land stageIDs' = stageIDs \land
+		sealedIDs' = sealedIDs \land closeOK' = closeOK \\
+		published' = published \cup \{ backupPath \mapsto id? \} \\
+		publicationImages' = publicationImages \oplus
+		\{ id? \mapsto snapshotImages~id? \} \\
+		owned' = owned \oplus \{ backupPath \mapsto id? \} \\
+		cleanupDue' = cleanupDue \oplus \{ backupPath \mapsto id? \} \\
+		cleanupPending' = cleanupPending \land retainedResults' = retainedResults \land
+		cleanupNotes' = cleanupNotes \\
+		phase' = publishingBackup \land committed' = committed \land
+		configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+		lockHeld' = lockHeld \land backupProgress' = backupLinked \land
+		life' = life \land reportState' = reportState
+	\end{schema}
+
+	% historical \begin{schema}{SyncBackupLink}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnImageFrame \\
+		TxnOwnershipFrame
+		\where
+		life = running \land cancelled = no \land phase = publishingBackup \land
+		lockHeld = yes \land backupProgress = backupLinked \\
+		visibleNS' = visibleNS \land durableNS' = visibleNS \land
+		pendingCount' = pendingZero \land
+		pendingDeltaOne' = pendingDeltaOne \land
+		pendingDeltaTwo' = pendingDeltaTwo \land
+		pendingDeltaThree' = pendingDeltaThree \\
+		phase' = publishingBackup \land committed' = committed \land
+		configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+		lockHeld' = lockHeld \land backupProgress' = linkSynced \land
+		life' = life \land reportState' = reportState
+	\end{schema}
+
+	% historical \begin{schema}{RemoveBackupStage}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnImageFrame \\
+		id? : Identity; delta? : Delta
+		\where
+		life = running \land cancelled = no \land phase = publishingBackup \land
+		lockHeld = yes \land backupProgress = linkSynced \land
+		backupStage \in \dom cleanupDue \cap \dom visibleNS \\
+		id? = cleanupDue~backupStage \land visibleNS~backupStage = file~id? \\
+		backupStage \notin \dom retainedResults \\
+		deltaRemove~delta? = \{ backupStage \} \land deltaPut~delta? = \emptyset \\
+		AppendPendingDelta \\
+		visibleNS' = applyDelta~(visibleNS,delta?) \land durableNS' = durableNS \\
+		owned' = owned \land cleanupDue' = cleanupDue \land
+		cleanupPending' = cleanupPending \oplus \{ backupStage \mapsto id? \} \\
+		retainedResults' = retainedResults \land cleanupNotes' = cleanupNotes \\
+		phase' = publishingBackup \land committed' = committed \land
+		configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+		lockHeld' = lockHeld \land backupProgress' = stageRemoved \land
+		life' = life \land reportState' = reportState
+	\end{schema}
+
+	% historical \begin{schema}{SyncBackupRemoval}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnImageFrame
+		\where
+		life = running \land cancelled = no \land phase = publishingBackup \land
+		lockHeld = yes \land backupProgress = stageRemoved \land
+		backupStage \notin \dom visibleNS \\
+		visibleNS' = visibleNS \land durableNS' = visibleNS \land
+		pendingCount' = pendingZero \land
+		pendingDeltaOne' = pendingDeltaOne \land
+		pendingDeltaTwo' = pendingDeltaTwo \land
+		pendingDeltaThree' = pendingDeltaThree \\
+		owned' = owned \land
+		cleanupDue' = \{ backupStage \} \ndres cleanupDue \land
+		cleanupPending' = \{ backupStage \} \ndres cleanupPending \land
+		retainedResults' = retainedResults \land cleanupNotes' = cleanupNotes \\
+		phase' = revalidating \land committed' = committed \land
+		configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+		lockHeld' = lockHeld \land backupProgress' = backupReady \land
+		life' = life \land reportState' = reportState
+	\end{schema}
+
+	The no-conflict path and the completed-backup path meet at an explicit
+	revalidation phase.  A successful revalidation compares the accepted config
+	existence/identity and complete image with the current namespace/image before
+	exposing the publication phase.  The commit schemas require that milestone;
+	neither cancellation nor abort can manufacture it.
+
+	% historical \begin{schema}{BeginRevalidation}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnNamespaceFrame \\
+		TxnImageFrame \\
+		TxnOwnershipFrame
+		\where
+		life = running \land cancelled = no \land phase = staging \land
+		lockHeld = yes \land conflicts = \emptyset \land
+		backupProgress = backupNone \\
+		candidateID \in sealedIDs \cap closeOK \cap \dom syncedImages \cap
+		\dom intendedImages \\
+		phase' = revalidating \land committed' = committed \land
+		configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+		lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+		life' = life \land reportState' = reportState
+	\end{schema}
+
+	% historical \begin{schema}{RevalidationSuccess}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnNamespaceFrame \\
+		TxnImageFrame \\
+		TxnOwnershipFrame
+		\where
+		life = running \land cancelled = no \land phase = revalidating \land
+		lockHeld = yes \\
+		( expectedConfig = \emptyset \land configPath \notin \dom visibleNS ) \lor \\
+		( \exists originalID : expectedConfig @ \\
+		\t1 originalID \in \dom snapshotImages \cap \dom visibleImages \land \\
+		\t1 \{ configPath \mapsto file~originalID \} \subseteq visibleNS \land
+		visibleImages~originalID = snapshotImages~originalID ) \\
+		phase' = publishingConfig \land committed' = committed \land
+		configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+		lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+		life' = life \land reportState' = reportState
+	\end{schema}
+
+	Both commit operations require backup-ready exactly when conflicts exist.  They
+	publish the complete candidate, retain the config destination, and atomically
+	transfer the exact final backup from abort cleanup to retained result.  Rename
+	records a source tombstone; hard-link publication leaves the source cleanup-due.
+
+	% historical \begin{schema}{CommitExisting}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		delta? : Delta; backupID? : Identity
+		\where
+		life = running \land cancelled = no \land phase = publishingConfig \land
+		lockHeld = yes \land expectedConfig \neq \emptyset \land
+		configPath \in \dom visibleNS \land
+		visibleNS~configPath \neq file~candidateID \\
+		( \exists originalID : expectedConfig @ \\
+		\t1 originalID \in \dom snapshotImages \cap \dom visibleImages \land \\
+		\t1 visibleNS~configPath = file~originalID \land
+		visibleImages~originalID = snapshotImages~originalID ) \\
+		configStage \in \dom visibleNS \cap \dom cleanupDue \land
+		visibleNS~configStage = file~candidateID \land
+		cleanupDue~configStage = candidateID \\
+		candidateID \in sealedIDs \cap closeOK \cap \dom syncedImages \cap
+		\dom intendedImages \cap \dom visibleImages \\
+		visibleImages~candidateID = syncedImages~candidateID \land
+		syncedImages~candidateID = intendedImages~candidateID \land
+		imageState~(intendedImages~candidateID) = complete \\
+		( conflicts = \emptyset \land backupProgress = backupNone \land
+		backupPath \notin \dom owned ) \lor
+		( conflicts \neq \emptyset \land backupProgress = backupReady \land
+		backupPath \in \dom cleanupDue \cap \dom visibleNS \land
+		backupID? = cleanupDue~backupPath \land backupID? \in backupIDs \land
+		visibleNS~backupPath = file~backupID? ) \\
+		deltaRemove~delta? = \{ configStage \} \land
+		deltaPut~delta? = \{ configPath \mapsto file~candidateID \} \\
+		AppendPendingDelta \\
+		visibleNS' = applyDelta~(visibleNS,delta?) \land durableNS' = durableNS \\
+		visibleImages' = visibleImages \land syncedImages' = syncedImages \land
+		intendedImages' = intendedImages \land snapshotImages' = snapshotImages \land
+		dirtyChoices' = dirtyChoices \land stageIDs' = stageIDs \land
+		sealedIDs' = sealedIDs \land closeOK' = closeOK \\
+		published' = published \cup \{ configPath \mapsto candidateID \} \\
+		publicationImages' = publicationImages \oplus
+		\{ candidateID \mapsto intendedImages~candidateID \} \\
+		owned' = owned \oplus \{ configPath \mapsto candidateID \} \\
+		cleanupDue' = \{ backupPath \} \ndres cleanupDue \\
+		cleanupPending' = cleanupPending \oplus \{ configStage \mapsto candidateID \} \\
+		retainedResults' = retainedResults \oplus
+		\{ configPath \mapsto candidateID \} \oplus
+		( \{ backupPath \} \dres owned ) \\
+		cleanupNotes' = cleanupNotes \\
+		phase' = confirming \land committed' = yes \land configSyncAck' = no \land
+		cancelled' = cancelled \land lockHeld' = lockHeld \land
+		backupProgress' = backupProgress \land life' = life \land
+		reportState' = reportState
+	\end{schema}
+
+	Cancellation is observed at a boundary before the next live operation.  Before
+	commit it enters $aborting$ immediately; after commit it records cancellation
+	without blocking mandatory durability confirmation and identity-safe cleanup.
+	No forward staging, backup, revalidation, or commit transition accepts either
+	$cancelled=yes$ or $phase=aborting$.
+
+	% historical \begin{schema}{ObserveCancellation}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnNamespaceFrame \\
+		TxnImageFrame \\
+		TxnOwnershipFrame
+		\where
+		life = running \land cancelled = no \land phase \neq finished \land
+		reportState = reportPending \\
+		( committed = no \implies phase' = aborting ) \\
+		( committed = yes \implies phase' = phase ) \\
+		committed' = committed \land configSyncAck' = configSyncAck \land
+		cancelled' = yes \land lockHeld' = lockHeld \land
+		backupProgress' = backupProgress \land life' = life \land
+		reportState' = reportState
+	\end{schema}
+
+	% historical \begin{schema}{CommitAbsent}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		delta? : Delta; backupID? : Identity
+		\where
+		life = running \land cancelled = no \land phase = publishingConfig \land
+		lockHeld = yes \land expectedConfig = \emptyset \land
+		configPath \notin \dom visibleNS \\
+		configStage \in \dom visibleNS \cap \dom cleanupDue \land
+		visibleNS~configStage = file~candidateID \land
+		cleanupDue~configStage = candidateID \\
+		candidateID \in sealedIDs \cap closeOK \cap \dom syncedImages \cap
+		\dom intendedImages \cap \dom visibleImages \\
+		visibleImages~candidateID = syncedImages~candidateID \land
+		syncedImages~candidateID = intendedImages~candidateID \land
+		imageState~(intendedImages~candidateID) = complete \\
+		( conflicts = \emptyset \land backupProgress = backupNone \land
+		backupPath \notin \dom owned ) \lor
+		( conflicts \neq \emptyset \land backupProgress = backupReady \land
+		backupPath \in \dom cleanupDue \cap \dom visibleNS \land
+		backupID? = cleanupDue~backupPath \land backupID? \in backupIDs \land
+		visibleNS~backupPath = file~backupID? ) \\
+		deltaRemove~delta? = \emptyset \land
+		deltaPut~delta? = \{ configPath \mapsto file~candidateID \} \\
+		AppendPendingDelta \\
+		visibleNS' = applyDelta~(visibleNS,delta?) \land durableNS' = durableNS \\
+		visibleImages' = visibleImages \land syncedImages' = syncedImages \land
+		intendedImages' = intendedImages \land snapshotImages' = snapshotImages \land
+		dirtyChoices' = dirtyChoices \land stageIDs' = stageIDs \land
+		sealedIDs' = sealedIDs \land closeOK' = closeOK \\
+		published' = published \cup \{ configPath \mapsto candidateID \} \\
+		publicationImages' = publicationImages \oplus
+		\{ candidateID \mapsto intendedImages~candidateID \} \\
+		owned' = owned \oplus \{ configPath \mapsto candidateID \} \\
+		cleanupDue' = \{ backupPath \} \ndres cleanupDue \\
+		cleanupPending' = cleanupPending \\
+		retainedResults' = retainedResults \oplus
+		\{ configPath \mapsto candidateID \} \oplus
+		( \{ backupPath \} \dres owned ) \\
+		cleanupNotes' = cleanupNotes \\
+		phase' = confirming \land committed' = yes \land configSyncAck' = no \land
+		cancelled' = cancelled \land lockHeld' = lockHeld \land
+		backupProgress' = backupProgress \land life' = life \land
+		reportState' = reportState
+	\end{schema}
+
+	% historical \begin{schema}{UnlinkOwned}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnImageFrame \\
+		TxnControlFrame \\
+		p? : Path; id? : Identity; delta? : Delta
+		\where
+		life = running \land phase \in \{ aborting, confirming, cleaning \} \land
+		lockHeld = yes \\
+		p? \in \dom cleanupDue \cap \dom visibleNS \\
+		p? \notin \dom retainedResults \land id? = cleanupDue~p? \land
+		visibleNS~p? = file~id? \\
+		deltaRemove~delta? = \{ p? \} \land deltaPut~delta? = \emptyset \\
+		AppendPendingDelta \\
+		visibleNS' = applyDelta~(visibleNS,delta?) \land durableNS' = durableNS \\
+		owned' = owned \land cleanupDue' = cleanupDue \land
+		cleanupPending' = cleanupPending \oplus \{ p? \mapsto id? \} \\
+		retainedResults' = retainedResults \land cleanupNotes' = cleanupNotes
+	\end{schema}
+
+	% historical \begin{schema}{CleanupUnlinkFailed}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnNamespaceFrame \\
+		TxnImageFrame \\
+		TxnControlFrame \\
+		p? : Path
+		\where
+		life = running \land phase \in \{ aborting, confirming, cleaning \} \land
+		lockHeld = yes \\
+		p? \in \dom cleanupDue \setminus \dom retainedResults \\
+		owned' = owned \land cleanupDue' = cleanupDue \land
+		cleanupPending' = cleanupPending \land retainedResults' = retainedResults \land
+		cleanupNotes' = cleanupNotes \oplus \{ p? \mapsto unlinkFailed \}
+	\end{schema}
+
+	% historical \begin{schema}{CleanupReplacementFound}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnNamespaceFrame \\
+		TxnImageFrame \\
+		TxnControlFrame \\
+		p? : Path; replacement? : Identity
+		\where
+		life = running \land phase \in \{ aborting, confirming, cleaning \} \land
+		lockHeld = yes \\
+		p? \in \dom cleanupDue \cap \dom visibleNS \\
+		visibleNS~p? = file~replacement? \land replacement? \neq cleanupDue~p? \\
+		owned' = owned \land cleanupDue' = cleanupDue \land
+		cleanupPending' = cleanupPending \land retainedResults' = retainedResults \land
+		cleanupNotes' = cleanupNotes \oplus \{ p? \mapsto identityChanged \}
+	\end{schema}
+
+	% historical \begin{schema}{CleanupInspectionFailed}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnNamespaceFrame \\
+		TxnImageFrame \\
+		TxnControlFrame \\
+		p? : Path
+		\where
+		life = running \land phase \in \{ aborting, confirming, cleaning \} \land
+		lockHeld = yes \\
+		p? \in \dom cleanupDue \\
+		owned' = owned \land cleanupDue' = cleanupDue \land
+		cleanupPending' = cleanupPending \land retainedResults' = retainedResults \land
+		cleanupNotes' = cleanupNotes \oplus \{ p? \mapsto inspectFailed \}
+	\end{schema}
+
+	% historical \begin{schema}{DirectorySyncSuccess}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnImageFrame
+		\where
+		life = running \land phase \in \{ aborting, confirming, cleaning \} \land
+		lockHeld = yes \\
+		visibleNS' = visibleNS \land durableNS' = visibleNS \land
+		pendingCount' = pendingZero \land
+		pendingDeltaOne' = pendingDeltaOne \land
+		pendingDeltaTwo' = pendingDeltaTwo \land
+		pendingDeltaThree' = pendingDeltaThree \\
+		owned' = owned \\
+		cleanupDue' = \{ p : \dom cleanupDue |
+		\lnot ( \{ p \mapsto file~(cleanupDue~p) \} \subseteq visibleNS ) @ p \}
+		\ndres cleanupDue \\
+		cleanupPending' = \{ p : \dom cleanupPending |
+		\lnot ( \{ p \mapsto file~(cleanupDue~p) \} \subseteq visibleNS ) @ p \}
+		\ndres cleanupPending \\
+		retainedResults' = retainedResults \land cleanupNotes' = cleanupNotes \\
+		phase' = phase \land committed' = committed \land
+		( committed = yes \land
+		\{ configPath \mapsto file~candidateID \} \subseteq visibleNS
+		\implies configSyncAck' = yes ) \\
+		( committed = yes \land
+		\lnot ( \{ configPath \mapsto file~candidateID \} \subseteq visibleNS ) \implies
+		configSyncAck' = configSyncAck ) \\
+		( committed = no \implies configSyncAck' = configSyncAck ) \\
+		cancelled' = cancelled \land lockHeld' = lockHeld \land
+		backupProgress' = backupProgress \land life' = life \land
+		reportState' = reportState
+	\end{schema}
+
+	% historical \begin{schema}{DirectorySyncFailure}
+		\Xi Transaction
+		\where
+		life = running \land phase \in \{ aborting, confirming, cleaning \} \land
+		lockHeld = yes
+	\end{schema}
+
+	% historical \begin{theorem}{ConfirmedReplacementDischargesOwnedIdentity}
+		\forall DirectorySyncSuccess; p : \dom cleanupDue \cap \dom cleanupNotes @ \\
+		\t1 cleanupNotes~p = identityChanged \land
+		\lnot ( \{ p \mapsto file~(cleanupDue~p) \} \subseteq visibleNS ) \\
+		\t2 \implies p \notin \dom cleanupDue' \land
+		cleanupNotes'~p = identityChanged
+	\end{theorem}
+
+	% historical \begin{schema}{AbortTransaction}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnNamespaceFrame \\
+		TxnImageFrame \\
+		TxnOwnershipFrame
+		\where
+		committed = no \land life = running \land
+		phase \notin \{ aborting, finished \} \\
+		phase' = aborting \land committed' = no \land
+		configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+		lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+		life' = life \land reportState' = reportState
+	\end{schema}
+
+	\subsection{Finite paired crash restoration}
+
+	The crash relation chooses each active delta or skips it, in fixed slot order,
+	then chooses exactly one actually reached finite image for each referenced
+	identity.  This includes the empty and full choices without a recursive
+	powerset-valued function.  Namespace and images are one pair.
+
+	% historical \begin{schema}{CrashPair}
+		Transaction \\
+		crashNS : Namespace \\
+		crashImages : Identity \pfun FileImage \\
+		takeOne, takeTwo, takeThree : Bool \\
+		afterOne, afterTwo : Namespace
+		\where
+		( pendingCount = pendingZero \implies
+		takeOne = no \land takeTwo = no \land takeThree = no ) \\
+		( pendingCount = pendingOne \implies takeTwo = no \land takeThree = no ) \\
+		( pendingCount = pendingTwo \implies takeThree = no ) \\
+		( takeOne = yes \implies pendingCount \neq pendingZero \land
+		afterOne = applyDelta~(durableNS,pendingDeltaOne) ) \\
+		( takeOne = no \implies afterOne = durableNS ) \\
+		( takeTwo = yes \implies pendingCount \in \{ pendingTwo, pendingThree \} \land
+		afterTwo = applyDelta~(afterOne,pendingDeltaTwo) ) \\
+		( takeTwo = no \implies afterTwo = afterOne ) \\
+		( takeThree = yes \implies pendingCount = pendingThree \land
+		crashNS = applyDelta~(afterTwo,pendingDeltaThree) ) \\
+		( takeThree = no \implies crashNS = afterTwo ) \\
+		\dom crashImages = refs~crashNS \\
+		( \forall id : refs~crashNS @ \\
+		\t1 ( id \in \dom syncedImages \land crashImages~id = syncedImages~id ) \lor \\
+		\t1 ( id \in \dom dirtyChoices \land crashImages~id \in dirtyChoices~id ) ) \\
+		( \forall p : Path; id : Identity | (p,id) \in published \land \\
+		\t1 p \in \dom crashNS \land crashNS~p = file~id @ \\
+		\t2 crashImages~id = publicationImages~id )
+	\end{schema}
+
+	% historical \begin{schema}{PowerLoss}
+		\Delta Transaction \\
+		CrashPair
+		\where
+		life = running \land phase \neq finished \\
+		visibleNS' = crashNS \\
+		durableNS' = crashNS \\
+		pendingCount' = pendingZero \\
+		pendingDeltaOne' = pendingDeltaOne \\
+		pendingDeltaTwo' = pendingDeltaTwo \\
+		pendingDeltaThree' = pendingDeltaThree \\
+		visibleImages' = crashImages \\
+		syncedImages' = crashImages \\
+		dirtyChoices' = \emptyset \\
+		intendedImages' = intendedImages \\
+		snapshotImages' = snapshotImages \\
+		stageIDs' = \emptyset \\
+		sealedIDs' = \emptyset \\
+		closeOK' = \emptyset \\
+		owned' = \emptyset \\
+		cleanupDue' = \emptyset \\
+		cleanupPending' = \emptyset \\
+		retainedResults' = \emptyset \\
+		cleanupNotes' = \emptyset \\
+		published' = \{ p : \dom crashNS; id : Identity |
+		(p,id) \in published \land crashNS~p = file~id @ p \mapsto id \} \\
+		publicationImages' = publicationImages \\
+		configPath' = configPath \\
+		backupPath' = backupPath \\
+		configStage' = configStage \\
+		backupStage' = backupStage \\
+		candidateID' = candidateID \\
+		backupIDs' = backupIDs \\
+		expectedConfig' = expectedConfig \\
+		conflicts' = conflicts \\
+		phase' = finished \\
+		committed' = committed \\
+		configSyncAck' = configSyncAck \\
+		cancelled' = cancelled \\
+		lockHeld' = no \\
+		backupProgress' = backupProgress \\
+		life' = ended \\
+		reportState' = processDead
+	\end{schema}
+
+	% historical \begin{schema}{ProcessDeath}
+		\Delta Transaction \\
+		TxnStaticFrame \\
+		TxnNamespaceFrame \\
+		TxnImageFrame
+		\where
+		life = running \land phase \neq finished \\
+		owned' = \emptyset \land cleanupDue' = \emptyset \land
+		cleanupPending' = \emptyset \land retainedResults' = \emptyset \land
+		cleanupNotes' = \emptyset \\
+		phase' = finished \land committed' = committed \land
+		configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+		lockHeld' = no \land backupProgress' = backupProgress \land
+		life' = ended \land reportState' = processDead
+	\end{schema}
+
+	The complete transition additionally clears the active pending count, dirty
+	choices, cleanup notes, stage/seal/close sets and lock ownership.  Assigning restored images as a
+	new settled baseline does not turn their preserved $partial$ marker into
+	$complete$.  A restarted process receives no dead invocation's cleanup rights.
+	Process death without power loss ends execution and releases the lock while
+	leaving the visible filesystem unchanged.
+
+	% historical \begin{theorem}{PublishedCrashImageExact}
+		\forall CrashPair; p : Path; id : Identity @ \\
+		\t1 (p,id) \in published \land p \in \dom crashNS \land crashNS~p = file~id \\
+		\t2 \implies crashImages~id = publicationImages~id
+	\end{theorem}
+
+	% historical \begin{theorem}{CrashImageCoverage}
+		\forall CrashPair @ \dom crashImages = refs~crashNS
+	\end{theorem}
+
+	% historical \begin{theorem}{PublishedImagesAreComplete}
+		\forall Transaction; id : Identity | id \in \dom publicationImages @
+		imageState~(publicationImages~id) = complete
+	\end{theorem}
+
+	% historical \begin{theorem}{PublishedBackupIsExactSnapshot}
+		\forall Transaction; id : backupIDs \cap \dom publicationImages @
+		publicationImages~id = snapshotImages~id
+	\end{theorem}
+
+	% historical \begin{theorem}{DirtyChoicesContainNoFutureBytes}
+		\forall Transaction; id : \dom dirtyChoices; i : dirtyChoices~id @ \\
+		\t1 imageBytes~i \mapsto imageBytes~(visibleImages~id) \in bytePrefix \land \\
+		\t1 imageBytes~(visibleImages~id) \mapsto
+		imageBytes~(intendedImages~id) \in bytePrefix
+	\end{theorem}
+
+	For cleanup reporting, owned-present means every $CrashPair$ contains that
+	identity at the path; owned-absent means every pair omits it there; otherwise
+	presence is uncertain.  A visible unlink by itself proves neither durable
+	absence nor config durability.
+
+	The required bounded traces are: cancellation before publication entering abort;
+	cancellation after publication followed by mandatory sync and cleanup; successful
+	revalidation before both commit modes; abort after backup-ready; backup
+	replacement followed by sync that discharges only the owned identity while
+	retaining its note; unlink with failed sync and crash resurrection; rename-source
+	tombstone; absent-config hard link with only the stage cleaned; conflicting
+	commit transfer which later cancellation/sync/cleanup/report failure cannot
+	reverse; fresh empty, partial, and complete-unsynced stage crash images with no
+	future bytes; directory sync without file sync; final backup surviving without
+	its stage; complete final config after rename/link; exact snapshot backup
+	bytes/mode; external dirty original choices; shared hard-link image identity;
+	and process death/restart without a successor write, commit, or inherited
+	authority.  Result witnesses include a retained $dConfigSync$ event followed by
+	confirmed acknowledgement and a failed-after-commit result, plus both early
+	null-URL and post-local derived-URL cancellation.
+
+	Mutation checking must obtain counterexamples after removing file-sync before
+	publication, destination ownership/cleanup insertion, rename-source tombstone,
+	backup cleanup-to-retained transfer, cleanup directory-sync acknowledgement,
+	replacement-identity discharge, successful revalidation/cancellation guards,
+	reached-prefix image constraints, published-image restoration equality,
+	backup-before-commit, HTTP authorization, or operational-event precedence.  Such
+	mutants are deliberately not alternative legal schemas; they are checker
+	obligations against the predicates above.
+
+\end{verbatim}
+
+\subsection{Increment 1 executable transaction library}
+
+The raw-routing $Init$ above remains quiescent: it initializes only
+$RawConfig$ and does not start a filesystem invocation.  The declarations and
+safety predicate below are an independent library.  They mention no
+$RawConfig$ component, and no transaction operation includes $TxnSafety'$ as a
+postcondition.  Only a generated finite scenario introduces the ProZ names
+$State$, $Init$, and $Invariant$.
+
+% POINTS-CHECK BEGIN types.txn type
+\begin{zed}
+	EntryRef ::= file \ldata Identity \rdata | symlinkRef | directoryRef | specialRef \\
+	Namespace == Path \pfun EntryRef \\
+	CleanupObservation ::= noCleanupNote | unlinkFailed | identityChanged | inspectFailed \\
+	BackupProgress ::= backupNone | backupStaged | backupLinked | linkSynced | \\
+	\t1 stageRemoved | backupReady \\
+	PendingCount ::= pendingZero | pendingOne | pendingTwo | pendingThree | \\
+	\t1 pendingFour | pendingFive | pendingSix \\
+	TransactionPhase ::= validating | staging | publishingBackup | revalidating | \\
+	\t1 publishingConfig | confirming | cleaning | aborting | sweeping | \\
+	\t1 cleanupSync | releasing | reporting | finished \\
+	Life ::= running | ended \\
+	ReportState ::= reportPending | reportDelivered | reportFailed | processDead \\
+	LinkCount ::= oneLink | multipleLinks \\
+	AccessTag ::= supportedAccessA | supportedAccessB | unsupportedAccess
+\end{zed}
+% POINTS-CHECK END types.txn
+
+% POINTS-CHECK BEGIN definitions.filesystem definition
+\begin{axdef}
+	deltaRemove : Delta \fun \power Path \\
+	deltaPut : Delta \fun Namespace \\
+	emptyBytes : ByteString \\
+	bytePrefix : ByteString \rel ByteString \\
+	imageBytes : FileImage \fun ByteString \\
+	imageMode : FileImage \fun Mode \\
+	imageOwner : FileImage \fun Owner \\
+	imageState : FileImage \fun ContentState
+	\where
+	\forall b : ByteString @ emptyBytes \mapsto b \in bytePrefix \\
+	\forall b : ByteString @ b \mapsto b \in bytePrefix \\
+	\forall a, b : ByteString @ a \mapsto b \in bytePrefix \land
+	b \mapsto a \in bytePrefix \implies a = b \\
+	\forall a, b, c : ByteString @ a \mapsto b \in bytePrefix \land
+	b \mapsto c \in bytePrefix \implies a \mapsto c \in bytePrefix \\
+	\forall b : ByteString; m : Mode; o : Owner; c : ContentState @ \\
+	\t1 \exists_1 i : FileImage @ imageBytes~i = b \land imageMode~i = m \land \\
+	\t2 imageOwner~i = o \land imageState~i = c \\
+	\forall i, j : FileImage @ i = j \iff \\
+	\t1 imageBytes~i = imageBytes~j \land imageMode~i = imageMode~j \land \\
+	\t1 imageOwner~i = imageOwner~j \land imageState~i = imageState~j
+\end{axdef}
+
+\begin{zed}
+	applyDelta == ( \lambda d : Delta @ ( \lambda n : Namespace @ \\
+	\t1 (deltaRemove~d \ndres n) \oplus deltaPut~d ) ) \\
+	refs == ( \lambda n : Namespace @ \\
+	\t1 \{ id : Identity | \exists p : \dom n @ n~p = file~id \} )
+\end{zed}
+% POINTS-CHECK END definitions.filesystem
+
+% POINTS-CHECK BEGIN state.txnvars state
+\begin{schema}{TxnVars}
+	visibleNS, durableNS : Namespace \\
+	pendingCount : PendingCount \\
+	pendingDeltaOne, pendingDeltaTwo, pendingDeltaThree : Delta \\
+	pendingDeltaFour, pendingDeltaFive, pendingDeltaSix : Delta \\
+	visibleImages, syncedImages, intendedImages, snapshotImages :
+	Identity \pfun FileImage \\
+	dirtyChoices : Identity \pfun \power FileImage \\
+	stageIDs, sealedIDs, closeOK : \power Identity \\
+	published : \power ( Path \cross Identity ) \\
+	publicationImages : Identity \pfun FileImage \\
+	owned, cleanupDue, cleanupPending, retainedResults : Path \pfun Identity \\
+	cleanupNotes : Path \pfun CleanupObservation \\
+	configPath, backupPath, configStage, backupStage : Path \\
+	candidateID : Identity \\
+	backupIDs, expectedConfig : \power Identity \\
+	conflicts : \power JSONPointer \\
+	phase : TransactionPhase \\
+	committed, configSyncAck, cancelled, lockHeld : Bool \\
+	backupProgress : BackupProgress \\
+	life : Life \\
+	reportState : ReportState \\
+	revalidationPassed, confirmationAttempted : Bool \\
+	cleanupWork : Path \pfun Identity \\
+	cleanupTried : \power Path \\
+	cleanupSyncAttempted, releaseAttempted : Bool \\
+	events : \power RouteEvent \\
+	inputAccepted, writeStarted, noOp, namespaceMutated : Bool \\
+	snapshotLinks, currentLinks : Identity \pfun LinkCount \\
+	snapshotAccess, currentAccess : Identity \pfun AccessTag \\
+	ownedBackupPublication : Path \pfun Identity \\
+	backupAbsenceConfirmed : Bool \\
+	authorizationPassed : Bool \\
+	authorizedTransport : \power Transport \\
+	insecureConsent : Bool
+\end{schema}
+% POINTS-CHECK END state.txnvars
+
+The following predicate is checked independently as the generated machine
+invariant.  Active-delta coverage is explicit for all six slots; no recursive
+sequence or powerset-of-sequences construction is used.
+
+% POINTS-CHECK BEGIN predicate.txnsafety predicate
+\begin{schema}{TxnSafety}
+	TxnVars
+	\where
+	\# \{ configPath, backupPath, configStage, backupStage \} = 4 \\
+	\# expectedConfig \leq 1 \\
+	candidateID \notin backupIDs \\
+	cleanupDue \subseteq owned \\
+	cleanupPending \subseteq cleanupDue \\
+	retainedResults \subseteq owned \\
+	\dom cleanupDue \cap \dom retainedResults = \emptyset \\
+	\dom syncedImages \cap \dom dirtyChoices = \emptyset \\
+	( \forall choices : \ran dirtyChoices @ choices \neq \emptyset ) \\
+	( \forall id : \dom intendedImages @
+	imageState~(intendedImages~id) = complete ) \\
+	( \forall id : \dom dirtyChoices @ \\
+	\t1 id \in \dom visibleImages \cap \dom intendedImages \land \\
+	\t1 imageBytes~(visibleImages~id) \mapsto
+	imageBytes~(intendedImages~id) \in bytePrefix \land \\
+	\t1 dirtyChoices~id = \{ i : FileImage | \\
+	\t2 imageBytes~i \mapsto imageBytes~(visibleImages~id) \in bytePrefix \land \\
+	\t2 imageMode~i = imageMode~(intendedImages~id) \land \\
+	\t2 imageOwner~i = imageOwner~(intendedImages~id) \land \\
+	\t2 ( imageState~i = complete \iff
+	imageBytes~i = imageBytes~(intendedImages~id) ) @ i \} ) \\
+	refs~visibleNS \cup refs~durableNS \subseteq
+	\dom syncedImages \cup \dom dirtyChoices \\
+	( pendingCount \in \{ pendingOne, pendingTwo, pendingThree, pendingFour,
+	pendingFive, pendingSix \} \implies
+	refs~(deltaPut~pendingDeltaOne) \subseteq
+	\dom syncedImages \cup \dom dirtyChoices ) \\
+	( pendingCount \in \{ pendingTwo, pendingThree, pendingFour, pendingFive,
+	pendingSix \} \implies refs~(deltaPut~pendingDeltaTwo) \subseteq
+	\dom syncedImages \cup \dom dirtyChoices ) \\
+	( pendingCount \in \{ pendingThree, pendingFour, pendingFive, pendingSix \}
+	\implies refs~(deltaPut~pendingDeltaThree) \subseteq
+	\dom syncedImages \cup \dom dirtyChoices ) \\
+	( pendingCount \in \{ pendingFour, pendingFive, pendingSix \} \implies
+	refs~(deltaPut~pendingDeltaFour) \subseteq
+	\dom syncedImages \cup \dom dirtyChoices ) \\
+	( pendingCount \in \{ pendingFive, pendingSix \} \implies
+	refs~(deltaPut~pendingDeltaFive) \subseteq
+	\dom syncedImages \cup \dom dirtyChoices ) \\
+	( pendingCount = pendingSix \implies
+	refs~(deltaPut~pendingDeltaSix) \subseteq
+	\dom syncedImages \cup \dom dirtyChoices ) \\
+	( \forall p : Path; id : Identity | (p,id) \in published @ \\
+	\t1 id \in \dom publicationImages \land
+	imageState~(publicationImages~id) = complete ) \\
+	( committed = yes \implies revalidationPassed = yes ) \\
+	( configSyncAck = yes \implies committed = yes ) \\
+	( life = ended \implies phase = finished \land lockHeld = no ) \\
+	( \dom retainedResults \cap \dom cleanupDue = \emptyset )
+\end{schema}
+% POINTS-CHECK END predicate.txnsafety
+
+% POINTS-CHECK BEGIN predicate.snapshot predicate
+\begin{schema}{SnapshotMatches}
+	TxnVars
+	\where
+	( expectedConfig = \emptyset \land configPath \notin \dom visibleNS ) \lor \\
+	( \exists originalID : expectedConfig @ \\
+	\t1 \{ configPath \mapsto file~originalID \} \subseteq visibleNS \land \\
+	\t1 originalID \in \dom visibleImages \cap \dom snapshotImages \land \\
+	\t1 visibleImages~originalID = snapshotImages~originalID \land \\
+	\t1 originalID \in \dom currentLinks \cap \dom snapshotLinks \land \\
+	\t1 currentLinks~originalID = snapshotLinks~originalID \land \\
+	\t1 originalID \in \dom currentAccess \cap \dom snapshotAccess \land \\
+	\t1 currentAccess~originalID = snapshotAccess~originalID )
+\end{schema}
+% POINTS-CHECK END predicate.snapshot
+
+% POINTS-CHECK BEGIN predicate.backup predicate
+\begin{schema}{BackupBarrier}
+	TxnVars
+	\where
+	( conflicts = \emptyset \land backupProgress = backupNone \land
+	backupPath \notin \dom owned ) \lor \\
+	( conflicts \neq \emptyset \land backupProgress = backupReady \land \\
+	\t1 ( \exists id : backupIDs @ \\
+	\t2 \{ backupPath \mapsto id \} \subseteq ownedBackupPublication \land \\
+	\t2 \{ backupPath \mapsto id \} \subseteq cleanupDue \land \\
+	\t2 \{ backupPath \mapsto file~id \} \subseteq visibleNS \cap durableNS ) \land \\
+	\t1 backupStage \notin \dom visibleNS \cup \dom durableNS )
+\end{schema}
+
+\begin{schema}{RevalidationBarrier}
+	TxnVars
+	\where
+	phase = publishingConfig \land revalidationPassed = yes
+\end{schema}
+% POINTS-CHECK END predicate.backup
+
+% POINTS-CHECK BEGIN predicate.publication predicate
+\begin{schema}{WrittenComplete}
+	TxnVars \\
+	id? : Identity
+	\where
+	id? \in \dom visibleImages \cap \dom intendedImages \\
+	visibleImages~id? = intendedImages~id? \\
+	imageState~(intendedImages~id?) = complete
+\end{schema}
+
+\begin{schema}{FileSynced}
+	TxnVars \\
+	id? : Identity
+	\where
+	id? \in sealedIDs \cap \dom syncedImages \cap \dom intendedImages \\
+	syncedImages~id? = intendedImages~id?
+\end{schema}
+
+\begin{schema}{PublicationQualified}
+	TxnVars \\
+	id? : Identity
+	\where
+	WrittenComplete \\
+	% POINTS-MUTATION BEGIN m2.publication.file-sync
+	FileSynced \\
+	% POINTS-MUTATION END m2.publication.file-sync
+	id? \in closeOK
+\end{schema}
+% POINTS-CHECK END predicate.publication
+
+The common accepted-write initializer starts after authorization, safe locked
+observation, successful normalization and serialization, and the non-no-op
+decision.  Those facts are the $AcceptedWriteFacts$ of the refinement; the
+scenario suffix supplies $InitFromAcceptedWrite$ by assigning every field not
+fixed here.  In particular it binds exact candidate bytes, exact conflicts,
+path roles, transport authorization, and the accepted existence observation.
+
+% POINTS-CHECK BEGIN init.txn init
+\begin{schema}{TxnInit}
+	TxnVars'
+	\where
+	phase' = staging \land life' = running \land reportState' = reportPending \\
+	lockHeld' = yes \land inputAccepted' = yes \land writeStarted' = yes \land
+	noOp' = no \\
+	committed' = no \land configSyncAck' = no \land cancelled' = no \\
+	revalidationPassed' = no \land confirmationAttempted' = no \\
+	cleanupSyncAttempted' = no \land releaseAttempted' = no \\
+	namespaceMutated' = no \land backupAbsenceConfirmed' = no \land
+	backupProgress' = backupNone \\
+	events' = \emptyset \\
+	stageIDs' = \emptyset \land sealedIDs' = \emptyset \land closeOK' = \emptyset \\
+	owned' = \emptyset \land cleanupDue' = \emptyset \land
+	cleanupPending' = \emptyset \land retainedResults' = \emptyset \\
+	cleanupNotes' = \emptyset \land cleanupWork' = \emptyset \land
+	cleanupTried' = \emptyset \\
+	published' = \emptyset \land publicationImages' = \emptyset \land
+	ownedBackupPublication' = \emptyset \\
+	pendingCount' = pendingZero \\
+	pendingDeltaOne' = pendingDeltaTwo' = pendingDeltaThree' \\
+	pendingDeltaFour' = pendingDeltaFive' = pendingDeltaSix'
+\end{schema}
+% POINTS-CHECK END init.txn
+
+The authoritative $TxnInit$ schema remains in the reviewed source inventory.
+The Scenario~A generator hashes its exact predicate body and inlines those
+predicates into the sole generated initializer; it does not project the source
+schema or export an initializer helper to ProZ.
+
+The final initializer equality is completed by Scenario~A with all six slots
+equal to its distinguished idle delta.  No field of the generated $Init$ is
+unconstrained.
+
+% POINTS-CHECK BEGIN effect.frames definition
+\begin{schema}{TxnStaticFrame}
+	\Delta TxnVars
+	\where
+	configPath' = configPath \land backupPath' = backupPath \land
+	configStage' = configStage \land backupStage' = backupStage \\
+	candidateID' = candidateID \land backupIDs' = backupIDs \land
+	expectedConfig' = expectedConfig \land conflicts' = conflicts \\
+	intendedImages' = intendedImages \land snapshotImages' = snapshotImages \\
+	snapshotLinks' = snapshotLinks \land currentLinks' = currentLinks \land
+	snapshotAccess' = snapshotAccess \land currentAccess' = currentAccess \\
+	inputAccepted' = inputAccepted \land writeStarted' = writeStarted \land
+	noOp' = noOp \\
+	authorizationPassed' = authorizationPassed \land
+	authorizedTransport' = authorizedTransport \land
+	insecureConsent' = insecureConsent
+\end{schema}
+
+\begin{schema}{TxnNamespaceFrame}
+	\Delta TxnVars
+	\where
+	visibleNS' = visibleNS \land durableNS' = durableNS \land
+	pendingCount' = pendingCount \\
+	pendingDeltaOne' = pendingDeltaOne \land pendingDeltaTwo' = pendingDeltaTwo \land
+	pendingDeltaThree' = pendingDeltaThree \land
+	pendingDeltaFour' = pendingDeltaFour \land
+	pendingDeltaFive' = pendingDeltaFive \land pendingDeltaSix' = pendingDeltaSix \\
+	namespaceMutated' = namespaceMutated
+\end{schema}
+
+\begin{schema}{TxnImageFrame}
+	\Delta TxnVars
+	\where
+	visibleImages' = visibleImages \land syncedImages' = syncedImages \land
+	dirtyChoices' = dirtyChoices
+\end{schema}
+
+\begin{schema}{TxnStageFrame}
+	\Delta TxnVars
+	\where
+	stageIDs' = stageIDs \land sealedIDs' = sealedIDs \land closeOK' = closeOK
+\end{schema}
+
+\begin{schema}{TxnPublicationFrame}
+	\Delta TxnVars
+	\where
+	published' = published \land publicationImages' = publicationImages
+\end{schema}
+
+\begin{schema}{TxnOwnershipFrame}
+	\Delta TxnVars
+	\where
+	owned' = owned \land cleanupDue' = cleanupDue \land
+	cleanupPending' = cleanupPending \land retainedResults' = retainedResults \land
+	cleanupNotes' = cleanupNotes
+\end{schema}
+
+\begin{schema}{TxnControlFrame}
+	\Delta TxnVars
+	\where
+	phase' = phase \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState
+\end{schema}
+
+\begin{schema}{TxnAttemptFrame}
+	\Delta TxnVars
+	\where
+	revalidationPassed' = revalidationPassed \land
+	confirmationAttempted' = confirmationAttempted \land
+	cleanupWork' = cleanupWork \land cleanupTried' = cleanupTried \land
+	cleanupSyncAttempted' = cleanupSyncAttempted \land
+	releaseAttempted' = releaseAttempted
+\end{schema}
+
+\begin{schema}{TxnEventFrame}
+	\Delta TxnVars
+	\where events' = events
+\end{schema}
+
+\begin{schema}{TxnBackupHistoryFrame}
+	\Delta TxnVars
+	\where
+	ownedBackupPublication' = ownedBackupPublication \land
+	backupAbsenceConfirmed' = backupAbsenceConfirmed
+\end{schema}
+% POINTS-CHECK END effect.frames
+
+% POINTS-CHECK BEGIN effect.append definition
+\begin{schema}{AppendPendingDelta}
+	pendingCount, pendingCount' : PendingCount \\
+	pendingDeltaOne, pendingDeltaTwo, pendingDeltaThree : Delta \\
+	pendingDeltaFour, pendingDeltaFive, pendingDeltaSix : Delta \\
+	pendingDeltaOne', pendingDeltaTwo', pendingDeltaThree' : Delta \\
+	pendingDeltaFour', pendingDeltaFive', pendingDeltaSix' : Delta \\
+	delta? : Delta
+	\where
+	( pendingCount = pendingZero \land pendingCount' = pendingOne \land
+	pendingDeltaOne' = delta? \land pendingDeltaTwo' = pendingDeltaTwo \land
+	pendingDeltaThree' = pendingDeltaThree \land pendingDeltaFour' = pendingDeltaFour \land
+	pendingDeltaFive' = pendingDeltaFive \land pendingDeltaSix' = pendingDeltaSix ) \lor \\
+	( pendingCount = pendingOne \land pendingCount' = pendingTwo \land
+	pendingDeltaOne' = pendingDeltaOne \land pendingDeltaTwo' = delta? \land
+	pendingDeltaThree' = pendingDeltaThree \land pendingDeltaFour' = pendingDeltaFour \land
+	pendingDeltaFive' = pendingDeltaFive \land pendingDeltaSix' = pendingDeltaSix ) \lor \\
+	( pendingCount = pendingTwo \land pendingCount' = pendingThree \land
+	pendingDeltaOne' = pendingDeltaOne \land pendingDeltaTwo' = pendingDeltaTwo \land
+	pendingDeltaThree' = delta? \land pendingDeltaFour' = pendingDeltaFour \land
+	pendingDeltaFive' = pendingDeltaFive \land pendingDeltaSix' = pendingDeltaSix ) \lor \\
+	( pendingCount = pendingThree \land pendingCount' = pendingFour \land
+	pendingDeltaOne' = pendingDeltaOne \land pendingDeltaTwo' = pendingDeltaTwo \land
+	pendingDeltaThree' = pendingDeltaThree \land pendingDeltaFour' = delta? \land
+	pendingDeltaFive' = pendingDeltaFive \land pendingDeltaSix' = pendingDeltaSix ) \lor \\
+	( pendingCount = pendingFour \land pendingCount' = pendingFive \land
+	pendingDeltaOne' = pendingDeltaOne \land pendingDeltaTwo' = pendingDeltaTwo \land
+	pendingDeltaThree' = pendingDeltaThree \land pendingDeltaFour' = pendingDeltaFour \land
+	pendingDeltaFive' = delta? \land pendingDeltaSix' = pendingDeltaSix ) \lor \\
+	( pendingCount = pendingFive \land pendingCount' = pendingSix \land
+	pendingDeltaOne' = pendingDeltaOne \land pendingDeltaTwo' = pendingDeltaTwo \land
+	pendingDeltaThree' = pendingDeltaThree \land pendingDeltaFour' = pendingDeltaFour \land
+	pendingDeltaFive' = pendingDeltaFive \land pendingDeltaSix' = delta? )
+\end{schema}
+% POINTS-CHECK END effect.append
+
+% POINTS-CHECK BEGIN effect.checkpoint definition
+\begin{schema}{DirectoryCheckpoint}
+	\Delta TxnVars
+	\where
+	visibleNS' = visibleNS \land durableNS' = visibleNS \land
+	pendingCount' = pendingZero \\
+	pendingDeltaOne' = pendingDeltaOne \land pendingDeltaTwo' = pendingDeltaTwo \land
+	pendingDeltaThree' = pendingDeltaThree \land
+	pendingDeltaFour' = pendingDeltaFour \land
+	pendingDeltaFive' = pendingDeltaFive \land pendingDeltaSix' = pendingDeltaSix \\
+	namespaceMutated' = namespaceMutated \\
+	cleanupDue' = \{ p : \dom cleanupDue |
+	\lnot ( \{ p \mapsto file~(cleanupDue~p) \} \subseteq visibleNS ) @ p \}
+	\ndres cleanupDue \\
+	cleanupPending' = \{ p : \dom cleanupPending |
+	\lnot ( \{ p \mapsto file~(cleanupDue~p) \} \subseteq visibleNS ) @ p \}
+	\ndres cleanupPending \\
+	owned' = owned \land retainedResults' = retainedResults \land
+	cleanupNotes' = cleanupNotes \\
+	( committed = yes \land
+	\{ configPath \mapsto file~candidateID \} \subseteq visibleNS
+	\implies configSyncAck' = yes ) \\
+	( committed = no \lor
+	\lnot ( \{ configPath \mapsto file~candidateID \} \subseteq visibleNS )
+	\implies configSyncAck' = configSyncAck ) \\
+	( backupAbsenceConfirmed' = yes \iff backupAbsenceConfirmed = yes \lor \\
+	\t1 ( ownedBackupPublication \neq \emptyset \land \\
+	\t2 ( \forall p : \dom ownedBackupPublication @ \\
+	\t3 \lnot ( \{ p \mapsto file~(ownedBackupPublication~p) \}
+	\subseteq visibleNS ) ) ) )
+\end{schema}
+% POINTS-CHECK END effect.checkpoint
+
+Every operation below declares $\Delta TxnVars$, uses the exact frame schemas
+for untouched groups, and assigns every member of every changed group.  This is
+the authoritative relation; extraction never invents a frame.  Operations that
+append a pending delta or establish a directory checkpoint declaration-include
+the corresponding authoritative effect schema, rather than mentioning it only
+as a predicate.
+
+% POINTS-CHECK BEGIN operation.candidatefailure operation
+\begin{schema}{CandidateFailure}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnAttemptFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	cancelled = no \land phase = staging \land stageIDs = \emptyset \land owned = \emptyset \\
+	phase' = aborting \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	events' = events \cup \{ wCandidate \}
+\end{schema}
+% POINTS-CHECK END operation.candidatefailure
+
+% POINTS-CHECK BEGIN operation.createstage operation
+\begin{schema}{StageRole}
+	TxnVars \\
+	p? : Path; id? : Identity
+	\where
+	( p? = configStage \land id? = candidateID ) \lor \\
+	( p? = backupStage \land id? \in backupIDs \land conflicts \neq \emptyset \land
+	candidateID \in closeOK )
+\end{schema}
+
+\begin{schema}{CreateReady}
+	TxnVars \\
+	p? : Path; id? : Identity
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	cancelled = no \land phase = staging \\
+	StageRole \\
+	p? \notin \dom visibleNS \cup \dom owned \\
+	id? \in \dom intendedImages \land id? \notin refs~visibleNS \cup refs~durableNS
+	\cup \ran owned \cup \dom visibleImages \cup \dom syncedImages
+	\cup \dom dirtyChoices \cup stageIDs \cup \dom publicationImages \\
+	( id? \in backupIDs \implies id? \in \dom snapshotImages \land
+	intendedImages~id? = snapshotImages~id? )
+\end{schema}
+
+\begin{schema}{CreateStage}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnPublicationFrame \\
+	TxnControlFrame \\
+	TxnAttemptFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame \\
+	AppendPendingDelta \\
+	p? : Path; id? : Identity; initialImage? : FileImage; delta? : Delta
+	\where
+	CreateReady \\
+	imageBytes~initialImage? = emptyBytes \land
+	imageMode~initialImage? = imageMode~(intendedImages~id?) \land
+	imageOwner~initialImage? = imageOwner~(intendedImages~id?) \\
+	( imageState~initialImage? = complete \iff
+	imageBytes~initialImage? = imageBytes~(intendedImages~id?) ) \\
+	deltaRemove~delta? = \emptyset \land
+	deltaPut~delta? = \{ p? \mapsto file~id? \} \\
+	visibleNS' = (applyDelta~delta?)~visibleNS \land durableNS' = durableNS \land
+	namespaceMutated' = yes \\
+	visibleImages' = visibleImages \oplus \{ id? \mapsto initialImage? \} \land
+	syncedImages' = syncedImages \\
+	dirtyChoices' = dirtyChoices \oplus \{ id? \mapsto \{ i : FileImage | \\
+	\t1 imageBytes~i \mapsto imageBytes~initialImage? \in bytePrefix \land
+	imageMode~i = imageMode~(intendedImages~id?) \land \\
+	\t1 imageOwner~i = imageOwner~(intendedImages~id?) \land \\
+	\t1 ( imageState~i = complete \iff
+	imageBytes~i = imageBytes~(intendedImages~id?) ) @ i \} \} \\
+	stageIDs' = stageIDs \cup \{ id? \} \land sealedIDs' = sealedIDs \land
+	closeOK' = closeOK \\
+	owned' = owned \oplus \{ p? \mapsto id? \} \land
+	cleanupDue' = cleanupDue \oplus \{ p? \mapsto id? \} \land
+	cleanupPending' = cleanupPending \land retainedResults' = retainedResults \land
+	cleanupNotes' = cleanupNotes
+\end{schema}
+% POINTS-CHECK END operation.createstage
+
+% POINTS-CHECK BEGIN operation.createstagefailure operation
+\begin{schema}{CreateStageFailure}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnAttemptFrame \\
+	TxnBackupHistoryFrame \\
+	p? : Path; id? : Identity
+	\where
+	CreateReady \\
+	phase' = aborting \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	( id? = candidateID \implies events' = events \cup \{ wConfigStage \} ) \\
+	( id? \in backupIDs \implies events' = events \cup \{ wBackupStage \} )
+\end{schema}
+% POINTS-CHECK END operation.createstagefailure
+
+% POINTS-CHECK BEGIN operation.writestage operation
+\begin{schema}{WriteStage}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnControlFrame \\
+	TxnAttemptFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame \\
+	id? : Identity; image? : FileImage
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	cancelled = no \land phase = staging \\
+	id? \in stageIDs \cap \dom visibleImages \cap \dom intendedImages \land
+	id? \notin sealedIDs \cup closeOK \\
+	imageBytes~(visibleImages~id?) \mapsto imageBytes~image? \in bytePrefix \land
+	imageBytes~(visibleImages~id?) \neq imageBytes~image? \\
+	imageBytes~image? \mapsto imageBytes~(intendedImages~id?) \in bytePrefix \\
+	imageMode~image? = imageMode~(intendedImages~id?) \land
+	imageOwner~image? = imageOwner~(intendedImages~id?) \\
+	( imageState~image? = complete \iff
+	imageBytes~image? = imageBytes~(intendedImages~id?) ) \\
+	visibleImages' = visibleImages \oplus \{ id? \mapsto image? \} \land
+	syncedImages' = syncedImages \\
+	dirtyChoices' = dirtyChoices \oplus \{ id? \mapsto \{ i : FileImage | \\
+	\t1 imageBytes~i \mapsto imageBytes~image? \in bytePrefix \land
+	imageMode~i = imageMode~(intendedImages~id?) \land \\
+	\t1 imageOwner~i = imageOwner~(intendedImages~id?) \land \\
+	\t1 ( imageState~i = complete \iff
+	imageBytes~i = imageBytes~(intendedImages~id?) ) @ i \} \}
+\end{schema}
+% POINTS-CHECK END operation.writestage
+
+% POINTS-CHECK BEGIN operation.writestagefailure operation
+\begin{schema}{WriteStageFailure}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnAttemptFrame \\
+	TxnBackupHistoryFrame \\
+	id? : Identity
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	cancelled = no \land phase = staging \land
+	id? \in stageIDs \setminus ( sealedIDs \cup closeOK ) \\
+	phase' = aborting \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	( id? = candidateID \implies events' = events \cup \{ wConfigStage \} ) \\
+	( id? \in backupIDs \implies events' = events \cup \{ wBackupStage \} )
+\end{schema}
+% POINTS-CHECK END operation.writestagefailure
+
+% POINTS-CHECK BEGIN operation.filesyncstage operation
+\begin{schema}{FileSyncStage}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnControlFrame \\
+	TxnAttemptFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame \\
+	id? : Identity
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	cancelled = no \land phase = staging \\
+	WrittenComplete \land id? \in stageIDs \setminus ( sealedIDs \cup closeOK ) \\
+	visibleImages' = visibleImages \land
+	syncedImages' = syncedImages \oplus \{ id? \mapsto intendedImages~id? \} \land
+	dirtyChoices' = \{ id? \} \ndres dirtyChoices \\
+	stageIDs' = stageIDs \land sealedIDs' = sealedIDs \cup \{ id? \} \land
+	closeOK' = closeOK
+\end{schema}
+% POINTS-CHECK END operation.filesyncstage
+
+% POINTS-CHECK BEGIN operation.filesyncstagefailure operation
+\begin{schema}{FileSyncStageFailure}
+	WriteStageFailure
+	\where WrittenComplete
+\end{schema}
+% POINTS-CHECK END operation.filesyncstagefailure
+
+% POINTS-CHECK BEGIN operation.closestage operation
+\begin{schema}{CloseStage}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnAttemptFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame \\
+	id? : Identity
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	cancelled = no \land phase = staging \\
+	id? \in stageIDs \setminus closeOK \\
+	WrittenComplete \\
+	% POINTS-MUTATION BEGIN m2.close.file-sync
+	FileSynced \\
+	% POINTS-MUTATION END m2.close.file-sync
+	stageIDs' = stageIDs \land sealedIDs' = sealedIDs \land
+	closeOK' = closeOK \cup \{ id? \} \\
+	phase' = phase \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land life' = life \land reportState' = reportState \\
+	( id? \in backupIDs \implies backupProgress' = backupStaged ) \\
+	( id? \notin backupIDs \implies backupProgress' = backupProgress )
+\end{schema}
+% POINTS-CHECK END operation.closestage
+
+% POINTS-CHECK BEGIN operation.closestagefailure operation
+\begin{schema}{CloseStageFailure}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnAttemptFrame \\
+	TxnBackupHistoryFrame \\
+	id? : Identity
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	cancelled = no \land phase = staging \\
+	id? \in stageIDs \setminus closeOK \\
+	WrittenComplete \\
+	FileSynced \\
+	phase' = aborting \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	( id? = candidateID \implies events' = events \cup \{ wConfigStage \} ) \\
+	( id? \in backupIDs \implies events' = events \cup \{ wBackupStage \} )
+\end{schema}
+% POINTS-CHECK END operation.closestagefailure
+
+% POINTS-CHECK BEGIN operation.beginrevalidation operation
+\begin{schema}{BeginRevalidation}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnAttemptFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	cancelled = no \land phase = staging \\
+	( \exists id? : Identity @
+	id? = candidateID \land WrittenComplete ) \land
+	candidateID \in closeOK \\
+	BackupBarrier \\
+	phase' = revalidating \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState
+\end{schema}
+% POINTS-CHECK END operation.beginrevalidation
+
+% POINTS-CHECK BEGIN operation.revalidationsuccess operation
+\begin{schema}{RevalidationSuccess}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	cancelled = no \land phase = revalidating \land SnapshotMatches \\
+	phase' = publishingConfig \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	revalidationPassed' = yes \land confirmationAttempted' = confirmationAttempted \land
+	cleanupWork' = cleanupWork \land cleanupTried' = cleanupTried \land
+	cleanupSyncAttempted' = cleanupSyncAttempted \land
+	releaseAttempted' = releaseAttempted
+\end{schema}
+% POINTS-CHECK END operation.revalidationsuccess
+
+% POINTS-CHECK BEGIN operation.revalidationiofailure operation
+\begin{schema}{RevalidationIOFailure}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnAttemptFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	cancelled = no \land phase = revalidating \\
+	phase' = aborting \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	events' = events \cup \{ wChanged \}
+\end{schema}
+% POINTS-CHECK END operation.revalidationiofailure
+
+% POINTS-CHECK BEGIN operation.commitabsent operation
+\begin{schema}{CommitAbsent}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnAttemptFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame \\
+	AppendPendingDelta \\
+	delta? : Delta
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	cancelled = no \\
+	% POINTS-MUTATION BEGIN m1.commit-absent.revalidation
+	RevalidationBarrier \\
+	% POINTS-MUTATION END m1.commit-absent.revalidation
+	SnapshotMatches \land BackupBarrier \\
+	expectedConfig = \emptyset \land configPath \notin \dom visibleNS \\
+	configStage \in \dom cleanupDue \land cleanupDue~configStage = candidateID \land
+	\{ configStage \mapsto file~candidateID \} \subseteq visibleNS \\
+	( \exists id? : Identity @ id? = candidateID \land PublicationQualified ) \\
+	deltaRemove~delta? = \emptyset \land
+	deltaPut~delta? = \{ configPath \mapsto file~candidateID \} \\
+	visibleNS' = (applyDelta~delta?)~visibleNS \land durableNS' = durableNS \land
+	namespaceMutated' = yes \\
+	published' = published \cup \{ configPath \mapsto candidateID \} \land
+	publicationImages' = publicationImages \oplus
+	\{ candidateID \mapsto intendedImages~candidateID \} \\
+	owned' = owned \oplus \{ configPath \mapsto candidateID \} \land
+	cleanupDue' = \{ backupPath \} \ndres cleanupDue \land
+	cleanupPending' = cleanupPending \land
+	retainedResults' = retainedResults \oplus \{ configPath \mapsto candidateID \}
+	\oplus ( \{ backupPath \} \dres owned ) \land cleanupNotes' = cleanupNotes \\
+	phase' = confirming \land committed' = yes \land configSyncAck' = no \land
+	cancelled' = cancelled \land lockHeld' = lockHeld \land
+	backupProgress' = backupProgress \land life' = life \land
+	reportState' = reportState
+\end{schema}
+% POINTS-CHECK END operation.commitabsent
+
+% POINTS-CHECK BEGIN operation.commitabsentfailure operation
+\begin{schema}{CommitAbsentFailure}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnAttemptFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	cancelled = no \\
+	RevalidationBarrier \\
+	SnapshotMatches \land BackupBarrier \\
+	expectedConfig = \emptyset \land configPath \notin \dom visibleNS \\
+	configStage \in \dom cleanupDue \land cleanupDue~configStage = candidateID \land
+	\{ configStage \mapsto file~candidateID \} \subseteq visibleNS \\
+	( \exists id? : Identity @ id? = candidateID \land PublicationQualified ) \\
+	phase' = aborting \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	events' = events \cup \{ wConfigPublish \}
+\end{schema}
+% POINTS-CHECK END operation.commitabsentfailure
+
+% POINTS-CHECK BEGIN operation.confirmconfigsuccess operation
+\begin{schema}{ConfirmConfigSuccess}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnEventFrame \\
+	DirectoryCheckpoint
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	phase = confirming \land committed = yes \land confirmationAttempted = no \\
+	phase' = cleaning \land committed' = committed \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	revalidationPassed' = revalidationPassed \land confirmationAttempted' = yes \land
+	cleanupWork' = cleanupWork \land cleanupTried' = cleanupTried \land
+	cleanupSyncAttempted' = cleanupSyncAttempted \land releaseAttempted' = releaseAttempted \\
+	ownedBackupPublication' = ownedBackupPublication
+\end{schema}
+% POINTS-CHECK END operation.confirmconfigsuccess
+
+% POINTS-CHECK BEGIN operation.confirmconfigfailure operation
+\begin{schema}{ConfirmConfigFailure}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	phase = confirming \land committed = yes \land confirmationAttempted = no \\
+	phase' = cleaning \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	revalidationPassed' = revalidationPassed \land confirmationAttempted' = yes \land
+	cleanupWork' = cleanupWork \land cleanupTried' = cleanupTried \land
+	cleanupSyncAttempted' = cleanupSyncAttempted \land releaseAttempted' = releaseAttempted \\
+	events' = events \cup \{ dConfigSync \}
+\end{schema}
+% POINTS-CHECK END operation.confirmconfigfailure
+
+% POINTS-CHECK BEGIN operation.begincleanup operation
+\begin{schema}{BeginCleanup}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	phase \in \{ aborting, cleaning \} \\
+	phase' = sweeping \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	revalidationPassed' = revalidationPassed \land
+	confirmationAttempted' = confirmationAttempted \land
+	cleanupWork' = cleanupDue \land cleanupTried' = \emptyset \land
+	cleanupSyncAttempted' = cleanupSyncAttempted \land
+	releaseAttempted' = releaseAttempted
+\end{schema}
+% POINTS-CHECK END operation.begincleanup
+
+% POINTS-CHECK BEGIN operation.unlinkowned operation
+\begin{schema}{UnlinkOwned}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame \\
+	AppendPendingDelta \\
+	p? : Path; delta? : Delta
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	phase = sweeping \land p? \in \dom cleanupWork \setminus cleanupTried \land
+	p? \notin \dom retainedResults \\
+	\{ p? \mapsto file~(cleanupWork~p?) \} \subseteq visibleNS \\
+	deltaRemove~delta? = \{ p? \} \land deltaPut~delta? = \emptyset \\
+	visibleNS' = (applyDelta~delta?)~visibleNS \land durableNS' = durableNS \land
+	namespaceMutated' = yes \\
+	owned' = owned \land cleanupDue' = cleanupDue \land
+	cleanupPending' = cleanupPending \oplus \{ p? \mapsto cleanupWork~p? \} \land
+	retainedResults' = retainedResults \land cleanupNotes' = cleanupNotes \\
+	phase' = phase \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	revalidationPassed' = revalidationPassed \land
+	confirmationAttempted' = confirmationAttempted \land
+	cleanupWork' = cleanupWork \land cleanupTried' = cleanupTried \cup \{ p? \} \land
+	cleanupSyncAttempted' = cleanupSyncAttempted \land releaseAttempted' = releaseAttempted
+\end{schema}
+% POINTS-CHECK END operation.unlinkowned
+
+% POINTS-CHECK BEGIN operation.cleanupalreadyabsent operation
+\begin{schema}{CleanupAlreadyAbsent}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnControlFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame \\
+	p? : Path
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	phase = sweeping \land p? \in \dom cleanupWork \setminus cleanupTried \land
+	p? \notin \dom retainedResults \cup \dom visibleNS \\
+	owned' = owned \land cleanupDue' = cleanupDue \land
+	cleanupPending' = cleanupPending \oplus \{ p? \mapsto cleanupWork~p? \} \land
+	retainedResults' = retainedResults \land cleanupNotes' = cleanupNotes \\
+	revalidationPassed' = revalidationPassed \land
+	confirmationAttempted' = confirmationAttempted \land
+	cleanupWork' = cleanupWork \land cleanupTried' = cleanupTried \cup \{ p? \} \land
+	cleanupSyncAttempted' = cleanupSyncAttempted \land releaseAttempted' = releaseAttempted
+\end{schema}
+% POINTS-CHECK END operation.cleanupalreadyabsent
+
+% POINTS-CHECK BEGIN operation.cleanupunlinkfailed operation
+\begin{schema}{CleanupUnlinkFailed}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnControlFrame \\
+	TxnBackupHistoryFrame \\
+	p? : Path
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	phase = sweeping \land p? \in \dom cleanupWork \setminus cleanupTried \land
+	p? \notin \dom retainedResults \land
+	\{ p? \mapsto file~(cleanupWork~p?) \} \subseteq visibleNS \\
+	owned' = owned \land cleanupDue' = cleanupDue \land
+	cleanupPending' = cleanupPending \land retainedResults' = retainedResults \land
+	cleanupNotes' = cleanupNotes \oplus \{ p? \mapsto unlinkFailed \} \\
+	revalidationPassed' = revalidationPassed \land
+	confirmationAttempted' = confirmationAttempted \land
+	cleanupWork' = cleanupWork \land cleanupTried' = cleanupTried \cup \{ p? \} \land
+	cleanupSyncAttempted' = cleanupSyncAttempted \land releaseAttempted' = releaseAttempted \\
+	events' = events \cup \{ cUnlink \}
+\end{schema}
+% POINTS-CHECK END operation.cleanupunlinkfailed
+
+% POINTS-CHECK BEGIN operation.cleanupinspectionfailed operation
+\begin{schema}{CleanupInspectionFailed}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnControlFrame \\
+	TxnBackupHistoryFrame \\
+	p? : Path
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	phase = sweeping \land p? \in \dom cleanupWork \setminus cleanupTried \land
+	p? \notin \dom retainedResults \\
+	owned' = owned \land cleanupDue' = cleanupDue \land
+	cleanupPending' = cleanupPending \land retainedResults' = retainedResults \land
+	cleanupNotes' = cleanupNotes \oplus \{ p? \mapsto inspectFailed \} \\
+	revalidationPassed' = revalidationPassed \land
+	confirmationAttempted' = confirmationAttempted \land
+	cleanupWork' = cleanupWork \land cleanupTried' = cleanupTried \cup \{ p? \} \land
+	cleanupSyncAttempted' = cleanupSyncAttempted \land releaseAttempted' = releaseAttempted \\
+	events' = events \cup \{ cInspect \}
+\end{schema}
+% POINTS-CHECK END operation.cleanupinspectionfailed
+
+% POINTS-CHECK BEGIN operation.endcleanupsweep operation
+\begin{schema}{EndCleanupSweep}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnAttemptFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	phase = sweeping \land cleanupTried = \dom cleanupWork \\
+	phase' = cleanupSync \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState
+\end{schema}
+% POINTS-CHECK END operation.endcleanupsweep
+
+% POINTS-CHECK BEGIN operation.cleanupsyncsuccess operation
+\begin{schema}{CleanupSyncSuccess}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnEventFrame \\
+	DirectoryCheckpoint
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	phase = cleanupSync \land cleanupSyncAttempted = no \\
+	phase' = releasing \land committed' = committed \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	revalidationPassed' = revalidationPassed \land
+	confirmationAttempted' = confirmationAttempted \land
+	cleanupWork' = cleanupWork \land cleanupTried' = cleanupTried \land
+	cleanupSyncAttempted' = yes \land releaseAttempted' = releaseAttempted \\
+	ownedBackupPublication' = ownedBackupPublication
+\end{schema}
+% POINTS-CHECK END operation.cleanupsyncsuccess
+
+% POINTS-CHECK BEGIN operation.cleanupsyncfailure operation
+\begin{schema}{CleanupSyncFailure}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land reportState = reportPending \land lockHeld = yes \land
+	phase = cleanupSync \land cleanupSyncAttempted = no \\
+	phase' = releasing \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	revalidationPassed' = revalidationPassed \land
+	confirmationAttempted' = confirmationAttempted \land
+	cleanupWork' = cleanupWork \land cleanupTried' = cleanupTried \land
+	cleanupSyncAttempted' = yes \land releaseAttempted' = releaseAttempted \\
+	events' = events \cup \{ cDeleteSync \}
+\end{schema}
+% POINTS-CHECK END operation.cleanupsyncfailure
+
+% POINTS-CHECK BEGIN operation.releasesuccess operation
+\begin{schema}{ReleaseSuccess}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land reportState = reportPending \land phase = releasing \land
+	releaseAttempted = no \\
+	phase' = reporting \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = no \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	revalidationPassed' = revalidationPassed \land
+	confirmationAttempted' = confirmationAttempted \land
+	cleanupWork' = cleanupWork \land cleanupTried' = cleanupTried \land
+	cleanupSyncAttempted' = cleanupSyncAttempted \land releaseAttempted' = yes
+\end{schema}
+% POINTS-CHECK END operation.releasesuccess
+
+% POINTS-CHECK BEGIN operation.releasefailure operation
+\begin{schema}{ReleaseFailure}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land reportState = reportPending \land phase = releasing \land
+	releaseAttempted = no \\
+	phase' = reporting \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = no \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportState \\
+	revalidationPassed' = revalidationPassed \land
+	confirmationAttempted' = confirmationAttempted \land
+	cleanupWork' = cleanupWork \land cleanupTried' = cleanupTried \land
+	cleanupSyncAttempted' = cleanupSyncAttempted \land releaseAttempted' = yes \\
+	events' = events \cup \{ cRelease \}
+\end{schema}
+% POINTS-CHECK END operation.releasefailure
+
+% POINTS-CHECK BEGIN operation.reportdelivered operation
+\begin{schema}{ReportDelivered}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnAttemptFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land phase = reporting \land reportState = reportPending \land
+	releaseAttempted = yes \land lockHeld = no \\
+	phase' = phase \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportDelivered
+\end{schema}
+% POINTS-CHECK END operation.reportdelivered
+
+% POINTS-CHECK BEGIN operation.reportfailed operation
+\begin{schema}{ReportFailed}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnAttemptFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land phase = reporting \land reportState = reportPending \land
+	releaseAttempted = yes \land lockHeld = no \\
+	phase' = phase \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = lockHeld \land backupProgress' = backupProgress \land
+	life' = life \land reportState' = reportFailed \\
+	( committed = yes \implies events' = events \cup \{ oReportAfter \} ) \\
+	( committed = no \implies events' = events \cup \{ oReportBefore \} )
+\end{schema}
+% POINTS-CHECK END operation.reportfailed
+
+% POINTS-CHECK BEGIN operation.finishtransaction operation
+\begin{schema}{FinishTransaction}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land phase = reporting \land
+	reportState \in \{ reportDelivered, reportFailed \} \land
+	releaseAttempted = yes \land cleanupSyncAttempted = yes \land
+	cleanupTried = \dom cleanupWork \land
+	( committed = yes \implies confirmationAttempted = yes ) \\
+	phase' = finished \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = no \land backupProgress' = backupProgress \land
+	life' = ended \land reportState' = reportState \\
+	revalidationPassed' = revalidationPassed \land
+	confirmationAttempted' = confirmationAttempted \land
+	cleanupWork' = cleanupWork \land cleanupTried' = cleanupTried \land
+	cleanupSyncAttempted' = cleanupSyncAttempted \land releaseAttempted' = releaseAttempted
+\end{schema}
+% POINTS-CHECK END operation.finishtransaction
+
+Normal finish removes executable authority only through $life=ended$,
+$phase=finished$, and $lockHeld=no$.  It preserves stage evidence, historical
+ownership, cleanup obligations and tombstones, retained results, and cleanup
+notes so the completed-result projection can still distinguish unconfirmed
+deletion after a failed cleanup checkpoint.  Process death and power loss retain
+their separate explicit authority-clearing effects.
+
+% POINTS-CHECK BEGIN operation.observecancellation operation
+\begin{schema}{ObserveCancellation}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnStageFrame \\
+	TxnPublicationFrame \\
+	TxnOwnershipFrame \\
+	TxnAttemptFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land reportState = reportPending \land cancelled = no \land
+	phase \neq finished \\
+	committed' = committed \land configSyncAck' = configSyncAck \land
+	cancelled' = yes \land lockHeld' = lockHeld \land
+	backupProgress' = backupProgress \land life' = life \land
+	reportState' = reportState \\
+	( committed = yes \implies phase' = phase \land
+	events' = events \cup \{ xAfterCommit \} ) \\
+	( committed = no \land phase \in
+	\{ staging, publishingBackup, revalidating, publishingConfig \} \implies
+	phase' = aborting \land events' = events \cup \{ xDuringWrite \} ) \\
+	( committed = no \land phase \notin
+	\{ staging, publishingBackup, revalidating, publishingConfig \} \implies
+	phase' = phase \land events' = events \cup \{ xDuringWrite \} )
+\end{schema}
+% POINTS-CHECK END operation.observecancellation
+
+% POINTS-CHECK BEGIN operation.processdeath operation
+\begin{schema}{ProcessDeath}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnNamespaceFrame \\
+	TxnImageFrame \\
+	TxnPublicationFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame
+	\where
+	life = running \land phase \neq finished \\
+	stageIDs' = \emptyset \land sealedIDs' = \emptyset \land closeOK' = \emptyset \\
+	owned' = \emptyset \land cleanupDue' = \emptyset \land
+	cleanupPending' = \emptyset \land retainedResults' = \emptyset \land
+	cleanupNotes' = \emptyset \\
+	phase' = finished \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = no \land backupProgress' = backupProgress \land
+	life' = ended \land reportState' = processDead \\
+	revalidationPassed' = revalidationPassed \land
+	confirmationAttempted' = confirmationAttempted \land
+	cleanupWork' = \emptyset \land cleanupTried' = \emptyset \land
+	cleanupSyncAttempted' = cleanupSyncAttempted \land releaseAttempted' = releaseAttempted
+\end{schema}
+% POINTS-CHECK END operation.processdeath
+
+% POINTS-CHECK BEGIN operation.powerloss operation
+\begin{schema}{PowerLoss}
+	\Delta TxnVars \\
+	TxnStaticFrame \\
+	TxnPublicationFrame \\
+	TxnEventFrame \\
+	TxnBackupHistoryFrame \\
+	crashNS : Namespace; crashImages : Identity \pfun FileImage \\
+	takeOne, takeTwo, takeThree, takeFour, takeFive, takeSix : Bool \\
+	afterOne, afterTwo, afterThree, afterFour, afterFive : Namespace
+	\where
+	life = running \land phase \neq finished \\
+	( pendingCount = pendingZero \implies takeOne = no ) \\
+	( pendingCount \notin \{ pendingTwo, pendingThree, pendingFour, pendingFive,
+	pendingSix \} \implies takeTwo = no ) \\
+	( pendingCount \notin \{ pendingThree, pendingFour, pendingFive, pendingSix \}
+	\implies takeThree = no ) \\
+	( pendingCount \notin \{ pendingFour, pendingFive, pendingSix \}
+	\implies takeFour = no ) \\
+	( pendingCount \notin \{ pendingFive, pendingSix \} \implies takeFive = no ) \\
+	( pendingCount \neq pendingSix \implies takeSix = no ) \\
+	( takeOne = yes \implies afterOne = (applyDelta~pendingDeltaOne)~durableNS ) \land
+	( takeOne = no \implies afterOne = durableNS ) \\
+	( takeTwo = yes \implies afterTwo = (applyDelta~pendingDeltaTwo)~afterOne ) \land
+	( takeTwo = no \implies afterTwo = afterOne ) \\
+	( takeThree = yes \implies afterThree = (applyDelta~pendingDeltaThree)~afterTwo )
+	\land ( takeThree = no \implies afterThree = afterTwo ) \\
+	( takeFour = yes \implies afterFour = (applyDelta~pendingDeltaFour)~afterThree )
+	\land ( takeFour = no \implies afterFour = afterThree ) \\
+	( takeFive = yes \implies afterFive = (applyDelta~pendingDeltaFive)~afterFour )
+	\land ( takeFive = no \implies afterFive = afterFour ) \\
+	( takeSix = yes \implies crashNS = (applyDelta~pendingDeltaSix)~afterFive )
+	\land ( takeSix = no \implies crashNS = afterFive ) \\
+	\dom crashImages = refs~crashNS \\
+	( \forall id : refs~crashNS @ \\
+	\t1 ( id \in \dom syncedImages \land crashImages~id = syncedImages~id ) \lor \\
+	\t1 ( id \notin \dom syncedImages \land id \in \dom dirtyChoices \land
+	crashImages~id \in dirtyChoices~id ) ) \\
+	visibleNS' = crashNS \land durableNS' = crashNS \land pendingCount' = pendingZero \\
+	pendingDeltaOne' = pendingDeltaOne \land pendingDeltaTwo' = pendingDeltaTwo \land
+	pendingDeltaThree' = pendingDeltaThree \land
+	pendingDeltaFour' = pendingDeltaFour \land
+	pendingDeltaFive' = pendingDeltaFive \land pendingDeltaSix' = pendingDeltaSix \land
+	namespaceMutated' = namespaceMutated \\
+	visibleImages' = crashImages \land syncedImages' = crashImages \land
+	dirtyChoices' = \emptyset \\
+	stageIDs' = \emptyset \land sealedIDs' = \emptyset \land closeOK' = \emptyset \\
+	published' = published \cap \{ p : \dom crashNS; id : Identity |
+	crashNS~p = file~id @ p \mapsto id \} \land
+	publicationImages' = publicationImages \\
+	owned' = \emptyset \land cleanupDue' = \emptyset \land
+	cleanupPending' = \emptyset \land retainedResults' = \emptyset \land
+	cleanupNotes' = \emptyset \\
+	phase' = finished \land committed' = committed \land
+	configSyncAck' = configSyncAck \land cancelled' = cancelled \land
+	lockHeld' = no \land backupProgress' = backupProgress \land
+	life' = ended \land reportState' = processDead \\
+	revalidationPassed' = revalidationPassed \land
+	confirmationAttempted' = confirmationAttempted \land
+	cleanupWork' = \emptyset \land cleanupTried' = \emptyset \land
+	cleanupSyncAttempted' = cleanupSyncAttempted \land releaseAttempted' = releaseAttempted
+\end{schema}
+% POINTS-CHECK END operation.powerloss
+
+The literal authoritative Increment~1 operation inventory is:
+
+\begin{zed}
+	TxnStep \defs CandidateFailure \lor CreateStage \lor CreateStageFailure \lor \\
+	\t1 WriteStage \lor WriteStageFailure \lor FileSyncStage \lor
+	FileSyncStageFailure \lor CloseStage \lor CloseStageFailure \lor \\
+	\t1 BeginRevalidation \lor RevalidationSuccess \lor RevalidationIOFailure \lor \\
+	\t1 CommitAbsent \lor CommitAbsentFailure \lor ConfirmConfigSuccess \lor
+	ConfirmConfigFailure \lor BeginCleanup \lor \\
+	\t1 UnlinkOwned \lor CleanupAlreadyAbsent \lor CleanupUnlinkFailed \lor
+	CleanupInspectionFailed \lor EndCleanupSweep \lor \\
+	\t1 CleanupSyncSuccess \lor CleanupSyncFailure \lor ReleaseSuccess \lor
+	ReleaseFailure \lor ReportDelivered \lor ReportFailed \lor \\
+	\t1 FinishTransaction \lor ObserveCancellation \lor ProcessDeath \lor PowerLoss
+\end{zed}
+
+\subsection{Scenario monitor and generated wrappers}
+
+The monitor is complete even though Scenario~A cannot exercise backup-order or
+replacement injection.  The bad flags are independent latches.  No wrapper
+assumes $MonitorSafety'$; a mutant must reach the corresponding bad state.
+
+% POINTS-CHECK BEGIN monitor.types monitor
+\begin{zed}
+	SlotIndex == 1 \upto 6 \\
+	DeathKind ::= noDeath | processDeathKind | powerLossKind \\
+	OperationTag ::= opCandidateFailure | opCreateStage | opCreateStageFailure | \\
+	\t1 opWriteStage | opWriteStageFailure | opFileSyncStage |
+	opFileSyncStageFailure | opCloseStage | opCloseStageFailure | \\
+	\t1 opBeginRevalidation | opRevalidationSuccess | opRevalidationIOFailure | \\
+	\t1 opCommitAbsent | opCommitAbsentFailure | opConfirmConfigSuccess |
+	opConfirmConfigFailure | opBeginCleanup | \\
+	\t1 opUnlinkOwned | opCleanupAlreadyAbsent | opCleanupUnlinkFailed |
+	opCleanupInspectionFailed | opEndCleanupSweep | \\
+	\t1 opCleanupSyncSuccess | opCleanupSyncFailure | opReleaseSuccess |
+	opReleaseFailure | opReportDelivered | opReportFailed | \\
+	\t1 opFinishTransaction | opObserveCancellation | opProcessDeath | opPowerLoss
+\end{zed}
+% POINTS-CHECK END monitor.types
+
+% POINTS-CHECK BEGIN monitor.vars monitor
+\begin{schema}{CheckMonitor}
+	seen : \power OperationTag \\
+	linksInjected, accessInjected, replacementInjected : Bool \\
+	cancellationAfterCommit : Bool \\
+	deathKind : DeathKind \\
+	lastCrashMask : \power SlotIndex \\
+	preCrashActiveCount : PendingCount \\
+	publicationSeen, publicationQualified : \power ( Path \cross Identity ) \\
+	configPublicationSeen, revalidatedAtConfigPublication : Bool \\
+	backupReadyAtConfigPublication : Bool \\
+	replacementPath : \power Path \\
+	replacementIdentity : \power Identity \\
+	badRevalidation, badFilePublication, badBackupOrder : Bool \\
+	badReplacementUnlink, badPrematureReport, badPostDeathStep : Bool \\
+	badImageCoverage, badFinalImage, badRetainedCleanup : Bool
+\end{schema}
+% POINTS-CHECK END monitor.vars
+
+% POINTS-CHECK BEGIN monitor.init monitor
+\begin{schema}{MonitorInit}
+	CheckMonitor'
+	\where
+	seen' = \emptyset \land linksInjected' = no \land accessInjected' = no \land
+	replacementInjected' = no \land cancellationAfterCommit' = no \\
+	deathKind' = noDeath \land lastCrashMask' = \emptyset \land
+	preCrashActiveCount' = pendingZero \\
+	publicationSeen' = \emptyset \land publicationQualified' = \emptyset \land
+	configPublicationSeen' = no \land revalidatedAtConfigPublication' = no \land
+	backupReadyAtConfigPublication' = no \\
+	replacementPath' = \emptyset \land replacementIdentity' = \emptyset \\
+	badRevalidation' = no \land badFilePublication' = no \land
+	badBackupOrder' = no \land badReplacementUnlink' = no \land
+	badPrematureReport' = no \land badPostDeathStep' = no \land
+	badImageCoverage' = no \land badFinalImage' = no \land
+	badRetainedCleanup' = no
+\end{schema}
+% POINTS-CHECK END monitor.init
+
+The authoritative $MonitorInit$ schema is likewise source-only.  Its exact
+predicate body is hashed and inlined into the sole generated initializer, so no
+monitor initializer helper is exported as a ProZ component.
+
+The generated wrapper supplies fixed $monitorOperation$, $monitorPath$, and
+$monitorCrashMask$ locals, never ProB inputs.  The path is empty except for
+cleanup operations and the crash mask is empty except for power loss.
+$MonitorUpdate$ observes both transaction states but assigns only monitor state.
+
+% POINTS-CHECK BEGIN monitor.update monitor
+\begin{schema}{MonitorUpdate}
+	\Delta TxnVars \\
+	\Delta CheckMonitor \\
+	monitorOperation : OperationTag \\
+	monitorPath : \power Path \\
+	monitorCrashMask : \power SlotIndex
+	\where
+	seen' = seen \cup \{ monitorOperation \} \\
+	linksInjected' = linksInjected \land accessInjected' = accessInjected \land
+	replacementInjected' = replacementInjected \\
+	( cancellationAfterCommit' = yes \iff cancellationAfterCommit = yes \lor
+	( monitorOperation = opObserveCancellation \land committed = yes ) ) \\
+	( monitorOperation = opProcessDeath \implies deathKind' = processDeathKind \land
+	preCrashActiveCount' = preCrashActiveCount \land lastCrashMask' = lastCrashMask ) \\
+	( monitorOperation = opPowerLoss \implies deathKind' = powerLossKind \land
+	preCrashActiveCount' = pendingCount \land lastCrashMask' = monitorCrashMask ) \\
+	( monitorOperation \notin \{ opProcessDeath, opPowerLoss \} \implies
+	deathKind' = deathKind \land preCrashActiveCount' = preCrashActiveCount \land
+	lastCrashMask' = lastCrashMask ) \\
+	publicationSeen' = publicationSeen \cup
+	\{ p : Path; id : Identity |
+	monitorOperation = opCommitAbsent \land p = configPath \land id = candidateID @
+	p \mapsto id \} \\
+	publicationQualified' = publicationQualified \cup
+	\{ p : Path; id : Identity |
+	monitorOperation = opCommitAbsent \land p = configPath \land id = candidateID \land
+	id \in \dom visibleImages \cap \dom intendedImages \cap \dom syncedImages \land
+	id \in sealedIDs \cap closeOK \land visibleImages~id = intendedImages~id \land
+	syncedImages~id = intendedImages~id \land
+	imageState~(intendedImages~id) = complete @ p \mapsto id \} \\
+	( monitorOperation = opCommitAbsent \implies configPublicationSeen' = yes \land
+	( revalidatedAtConfigPublication' = yes \iff
+	revalidationPassed = yes \land phase = publishingConfig ) \land
+	backupReadyAtConfigPublication' = yes ) \\
+	( monitorOperation \neq opCommitAbsent \implies
+	configPublicationSeen' = configPublicationSeen \land
+	revalidatedAtConfigPublication' = revalidatedAtConfigPublication \land
+	backupReadyAtConfigPublication' = backupReadyAtConfigPublication ) \\
+	replacementPath' = replacementPath \land replacementIdentity' = replacementIdentity \\
+	( badRevalidation' = yes \iff badRevalidation = yes \lor
+	( monitorOperation = opCommitAbsent \land
+	\lnot ( revalidationPassed = yes \land phase = publishingConfig ) ) ) \\
+	( badFilePublication' = yes \iff badFilePublication = yes \lor \\
+	\t1 ( monitorOperation = opCommitAbsent \land
+	\lnot ( candidateID \in \dom visibleImages \cap \dom intendedImages
+	\cap \dom syncedImages \land candidateID \in sealedIDs \cap closeOK \land
+	visibleImages~candidateID = intendedImages~candidateID \land
+	syncedImages~candidateID = intendedImages~candidateID \land
+	imageState~(intendedImages~candidateID) = complete ) ) ) \\
+	( badBackupOrder' = yes \iff badBackupOrder = yes \lor
+	( monitorOperation = opCommitAbsent \land conflicts \neq \emptyset \land
+	backupProgress \neq backupReady ) ) \\
+	( badReplacementUnlink' = yes \iff badReplacementUnlink = yes \lor
+	( monitorOperation = opUnlinkOwned \land monitorPath \neq \emptyset \land
+	( \exists p : monitorPath @ p \in \dom visibleNS \land p \in \dom cleanupWork \land
+	\lnot ( \{ p \mapsto file~(cleanupWork~p) \} \subseteq visibleNS ) ) ) ) \\
+	( badPrematureReport' = yes \iff badPrematureReport = yes \lor \\
+	\t1 ( monitorOperation \in \{ opReportDelivered, opReportFailed \} \land
+	\lnot ( releaseAttempted = yes \land cleanupSyncAttempted = yes \land
+		cleanupTried = \dom cleanupWork \land
+			( committed = no \lor confirmationAttempted = yes ) ) ) ) \\
+	( badPostDeathStep' = yes \iff badPostDeathStep = yes \lor life = ended ) \\
+	( badImageCoverage' = yes \iff badImageCoverage = yes \lor
+	( monitorOperation = opPowerLoss \land \dom visibleImages' \neq refs~visibleNS' ) ) \\
+	( badFinalImage' = yes \iff badFinalImage = yes \lor \\
+	\t1 ( monitorOperation = opPowerLoss \land
+	( \exists p : Path; id : Identity | (p,id) \in publicationSeen \land
+	\{ p \mapsto file~id \} \subseteq visibleNS' @ \\
+	\t2 id \notin \dom visibleImages' \cap \dom publicationImages \lor \\
+	\t2 ( id \in \dom visibleImages' \cap \dom publicationImages \land \\
+	\t3 ( visibleImages'~id \neq publicationImages~id \lor
+	imageState~(visibleImages'~id) \neq complete ) ) ) ) ) \\
+	( badRetainedCleanup' = yes \iff badRetainedCleanup = yes \lor
+	\dom retainedResults \cap \dom cleanupDue' \neq \emptyset \lor
+	( monitorOperation = opUnlinkOwned \land
+	monitorPath \cap \dom retainedResults \neq \emptyset ) )
+\end{schema}
+% POINTS-CHECK END monitor.update
+
+% POINTS-CHECK BEGIN monitor.safety monitor
+\begin{schema}{MonitorSafety}
+	CheckMonitor
+	\where
+	badRevalidation = no \land badFilePublication = no \land
+	badBackupOrder = no \land badReplacementUnlink = no \land
+	badPrematureReport = no \land badPostDeathStep = no \land
+	badImageCoverage = no \land badFinalImage = no \land
+	badRetainedCleanup = no
+\end{schema}
+% POINTS-CHECK END monitor.safety
+
+Scenario~A is the absent-file finite valuation.  The unused routing carriers
+$ModelId$, $Provider$, and $Source$ are outside its transaction projection;
+$JSONPointer$ remains because transaction state uses it for $conflicts$, and the
+Scenario~A pointer carrier has cardinality one.  It has one candidate identity;
+empty, prefix, and complete-candidate bytes; six extensional file images; and
+exactly four deltas: idle, candidate-stage creation, config hard-link, and stage
+removal.  Its exact finite carrier cardinalities are one JSON pointer, four
+paths, one identity, one owner, one mode, three byte strings, four deltas, and
+six file images.  Its initial visible/durable namespaces and all observation
+image and metadata maps are empty; $expectedConfig=backupIDs=conflicts=\emptyset$;
+$intendedImages$ maps the candidate to the complete candidate image; path roles
+are the four distinct path atoms; authorization is accepted HTTPS without
+insecure consent.  The generated operation set exports each Scenario~A operation
+only as its corresponding \texttt{Check} wrapper, except that
+$CleanupAlreadyAbsent$ remains a library relation but is not exported.  Scenario~A
+has no environment transition that can make its sole cleanup path disappear
+before the one-shot sweep, so exporting that wrapper would make exact nonzero
+coverage impossible.  No backup, existing-file, metadata-injection,
+external-disappearance, or replacement operation is introduced in Increment~1.
+
+The required M1 anchor removes only the successful-revalidation call at
+$CommitAbsent$.  The two M2 anchors remove only the file-sync calls at close and
+publication qualification.  Their exact marker bodies include one tab, the
+displayed predicate, two backslashes, and one LF.  M1 must reach
+$badRevalidation=yes$; M2 must reach $badFilePublication=yes$ and, with
+invariant stopping disabled, a power-loss state with $badFinalImage=yes$.
 
 \section{On-disk configuration: what the tool writes, per source}
 
@@ -521,10 +4060,12 @@ Picker: the source provider's \texttt{models} array ($shown$) --- the
 pattern-matched, routable subset. A \texttt{.pi/agents/*.md} frontmatter
 \texttt{model:} is out of scope.
 
-\textbf{opencode.} \texttt{opencode.json}. Route: the
-\texttt{provider.<name>.options} block. Default: global \texttt{model} +
-\texttt{small\_model}. Picker: the \texttt{provider.<name>.models} map ($shown$).
-An \texttt{agent.<name>.model} is out of scope.
+\textbf{opencode.} An explicit OpenCode V2 JSON file. Route: the
+\texttt{providers.<name>} package, env, and settings leaves. Default: root
+\texttt{model}. Registration: the \texttt{providers.<name>.models} map
+($registered$), which is distinct from any optional picker view ($shown$).
+Legacy singular \texttt{provider}, \texttt{options}, \texttt{small\_model}, and
+\texttt{agent.<name>.model} are not written; agent declarations are protected.
 
 The uniform rule: the tool writes the route, the default, and (for picker
 harnesses) the picker view; it never writes an agent's model. A per-agent model
@@ -550,10 +4091,10 @@ does not require any single such source to exist (the multi-source operator has
 none), only that each routed harness's source speaks that harness's protocol.
 
 \begin{axdef}
-  fleetCapable : \power Source
-\where
-  fleetCapable = \{ s : Source | \\
-  \t1 anthropic \in srcProtocols~s \land openai \in srcProtocols~s \}
+	fleetCapable : \power Source
+	\where
+	fleetCapable = \{ s : Source | \\
+	\t1 anthropic \in srcProtocols~s \land openai \in srcProtocols~s \}
 \end{axdef}
 
 \section{Two real-world constraints: compatibility and credential terms}

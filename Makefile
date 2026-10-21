@@ -6,6 +6,8 @@ PKG     := ./...
 VERSION := $(or $(shell git describe --tags --always 2>/dev/null | sed 's/^v//'),dev)
 LDFLAGS := -X main.version=$(VERSION)
 PREFIX  ?= $(HOME)/.local
+PROB    ?= $(HOME)/Applications/ProB/probcli
+PYTHON  ?= python3
 
 GOLANGCI_LINT_VERSION := v2.13.1
 ACTIONLINT_VERSION := v1.7.7
@@ -123,6 +125,65 @@ doctor: build check-dev ## Verify the CLI and local OpenCode development service
 .PHONY: spec
 spec: ## Type-check the target Z specification
 	fuzz docs/spec/points.target.spec.tex
+
+.PHONY: spec-prob
+spec-prob: spec ## Check target Z assertions with ProB
+	@test -x "$(PROB)" || { echo "probcli not found at $(PROB) — set PROB=/path/to/probcli"; exit 1; }
+	@PROB="$(PROB)" exec /bin/bash -c 'set -euo pipefail; set -m; \
+	  lock=docs/spec/.points-target-spec-prob.lock; output=docs/spec/points.target.spec.fuzz; log=docs/spec/.points-target-spec-prob.lock/prob.out; owned_lock=false; owned_output=false; acquiring=false; launching=false; pending_signal=0; child=""; watcher=""; make_pid=$$PPID; recipe_pid=$$$$; \
+	  cleanup_files() { test "$$owned_output" != true || rm -f "$$output"; test "$$owned_lock" != true || { rm -f "$$log"; rmdir "$$lock"; }; }; \
+	  group_alive() { test -n "$$child" && kill -0 -- "-$$child" 2>/dev/null; }; \
+	  stop_child() { if test -n "$$child"; then kill -TERM -- "-$$child" 2>/dev/null || true; for ((attempt=0; attempt<100; attempt++)); do group_alive || break; sleep 0.01; done; if group_alive; then kill -KILL -- "-$$child" 2>/dev/null || true; for ((attempt=0; attempt<100; attempt++)); do group_alive || break; sleep 0.01; done; fi; wait "$$child" 2>/dev/null || true; group_alive && return 1; fi; child=""; }; \
+	  stop_watcher() { if test -n "$$watcher" && kill -0 "$$watcher" 2>/dev/null; then kill "$$watcher" 2>/dev/null || true; wait "$$watcher" 2>/dev/null || true; fi; watcher=""; }; \
+	  watch_parent() { while kill -0 "$$make_pid" 2>/dev/null; do sleep 0.05; done; kill -TERM "$$recipe_pid" 2>/dev/null || true; }; \
+	  cleanup() { stop_watcher; if stop_child; then cleanup_files; else echo "checker process group did not terminate; preserving output and lock" >&2; return 1; fi; }; \
+	  on_signal() { code=$$1; trap - EXIT; cleanup; exit "$$code"; }; \
+	  handle_signal() { code=$$1; if test "$$acquiring" = true || test "$$launching" = true; then pending_signal=$$code; return; fi; on_signal "$$code"; }; \
+	  trap cleanup EXIT; trap "handle_signal 129" HUP; trap "handle_signal 130" INT; trap "handle_signal 143" TERM; \
+	  acquiring=true; if mkdir "$$lock" 2>/dev/null; then owned_lock=true; else acquiring=false; echo "another make spec-prob invocation is active"; exit 1; fi; acquiring=false; \
+	  test "$$pending_signal" -eq 0 || on_signal "$$pending_signal"; \
+	  test ! -e "$$output" && test ! -L "$$output" || { echo "refusing to replace pre-existing $$output"; exit 1; }; \
+	  owned_output=true; \
+	  launching=true; "$$PROB" docs/spec/points.target.spec.tex -cbc_assertions -strict >"$$log" 2>&1 & child=$$!; \
+	  watch_parent & watcher=$$!; launching=false; \
+	  test "$$pending_signal" -eq 0 || on_signal "$$pending_signal"; \
+	  status=0; wait "$$child" || status=$$?; stop_child; stop_watcher; cat "$$log"; \
+	  test "$$status" -eq 0 || exit "$$status"; \
+	  test "$$(grep -Fc "No counter-example to ASSERTION exists" "$$log")" -eq 1; \
+	  ! grep -Eq "COUNTER EXAMPLE FOUND|model_check_incomplete|Not all states|TIME OUT|Abnormal termination|Total Errors: [1-9]" "$$log"'
+
+.PHONY: spec-prob-a-smoke
+spec-prob-a-smoke: spec ## Generate and run the bounded Scenario A initialization/lifecycle smoke
+	@test -x "$(PROB)" || { echo "probcli not found at $(PROB) — set PROB=/path/to/probcli"; exit 1; }
+	@command -v "$(PYTHON)" >/dev/null || { echo "python not found at $(PYTHON)"; exit 1; }
+	@PROB="$(PROB)" PYTHON="$(PYTHON)" exec /bin/bash -c 'set -euo pipefail; set -m; \
+	  mkdir -p .tmp/opencode; run=$$(mktemp -d .tmp/opencode/spec-prob-a.XXXXXXXX); commands="$$run/commands.txt"; child=""; watcher=""; make_pid=$$PPID; recipe_pid=$$$$; \
+	  group_alive() { test -n "$$child" && kill -0 -- "-$$child" 2>/dev/null; }; \
+	  stop_child() { if test -n "$$child"; then kill -TERM -- "-$$child" 2>/dev/null || true; for ((attempt=0; attempt<100; attempt++)); do group_alive || break; sleep 0.01; done; if group_alive; then kill -KILL -- "-$$child" 2>/dev/null || true; fi; wait "$$child" 2>/dev/null || true; fi; child=""; }; \
+	  stop_watcher() { if test -n "$$watcher" && kill -0 "$$watcher" 2>/dev/null; then kill "$$watcher" 2>/dev/null || true; wait "$$watcher" 2>/dev/null || true; fi; watcher=""; }; \
+	  cleanup() { status=$$?; stop_watcher; stop_child; if test "$$status" -ne 0; then echo "Scenario A evidence preserved in $$run" >&2; fi; return "$$status"; }; \
+	  on_signal() { code=$$1; trap - EXIT; cleanup; printf "interrupted status=%s\n" "$$code" >>"$$commands"; echo "Scenario A evidence preserved in $$run" >&2; exit "$$code"; }; \
+	  trap cleanup EXIT; trap "on_signal 129" HUP; trap "on_signal 130" INT; trap "on_signal 143" TERM; \
+	  watch_parent() { while kill -0 "$$make_pid" 2>/dev/null; do sleep 0.05; done; kill -TERM "$$recipe_pid" 2>/dev/null || true; }; \
+	  watch_parent & watcher=$$!; \
+	  run_owned() { destination=$$1; shift; { printf "+"; printf " %q" "$$@"; printf " > %q\n" "$$destination"; } >>"$$commands"; "$$@" >"$$destination" 2>&1 & child=$$!; status=0; wait "$$child" || status=$$?; child=""; printf "status=%s\n" "$$status" >>"$$commands"; test "$$status" -eq 0; }; \
+	  echo "run_directory=$$run" >"$$commands"; \
+	  run_owned "$$run/prob-version.txt" "$$PROB" -version; \
+	  run_owned "$$run/prob-help.txt" "$$PROB" -help; \
+	  run_owned "$$run/generate.out" "$$PYTHON" .bin/generate-spec-prob.py generate --source docs/spec/points.target.spec.tex --output "$$run/scenario-a.tex" --manifest "$$run/inputs.json"; \
+	  run_owned "$$run/regenerate.out" "$$PYTHON" .bin/generate-spec-prob.py generate --source docs/spec/points.target.spec.tex --output "$$run/scenario-a.regenerated.tex" --manifest "$$run/inputs.regenerated.json"; \
+	  cmp "$$run/scenario-a.tex" "$$run/scenario-a.regenerated.tex"; cmp "$$run/inputs.json" "$$run/inputs.regenerated.json"; rm "$$run/scenario-a.regenerated.tex" "$$run/inputs.regenerated.json"; \
+	  run_owned "$$run/fuzz.out" fuzz "$$run/scenario-a.tex"; \
+	  run_owned "$$run/init.out" "$$PROB" "$$run/scenario-a.tex" -init -p TIME_OUT 10000 -p MAX_INITIALISATIONS 100000 -p MAX_OPERATIONS 100000 -global_time_out 180000 -c -l "$$run/init.log" -his "$$run/init.trace" -his_option trace_file -dot state_space "$$run/init.states.dot"; \
+	  run_owned "$$run/init-validation.out" "$$PYTHON" .bin/generate-spec-prob.py validate --phase init --checker-output "$$run/init.out" --dot "$$run/init.states.dot"; \
+	  goal="life=ended & phase=finished & reportState=reportDelivered & committed=yes & configSyncAck=yes & lockHeld=no & events={} & cleanupDue={} & cleanupPending={} & pendingCount=pendingZero & pConfig:dom(visibleNS) & visibleNS(pConfig)=file(idCandidate) & pConfig:dom(durableNS) & durableNS(pConfig)=file(idCandidate) & pConfigStage/:dom(visibleNS) & pConfigStage/:dom(durableNS) & idCandidate:dom(visibleImages) & visibleImages(idCandidate)=imageCompleteCandidate & idCandidate:dom(syncedImages) & syncedImages(idCandidate)=imageCompleteCandidate & seen={opCreateStage,opWriteStage,opFileSyncStage,opCloseStage,opBeginRevalidation,opRevalidationSuccess,opCommitAbsent,opConfirmConfigSuccess,opBeginCleanup,opUnlinkOwned,opEndCleanupSweep,opCleanupSyncSuccess,opReleaseSuccess,opReportDelivered,opFinishTransaction} & badRevalidation=no & badFilePublication=no & badBackupOrder=no & badReplacementUnlink=no & badPrematureReport=no & badPostDeathStep=no & badImageCoverage=no & badFinalImage=no & badRetainedCleanup=no"; \
+	  run_owned "$$run/lifecycle.out" "$$PROB" "$$run/scenario-a.tex" -model_check -mc_mode breadth-first -nodead -goal "$$goal" -p TIME_OUT 10000 -p MAX_INITIALISATIONS 100000 -p MAX_OPERATIONS 100000 -global_time_out 180000 -c -his "$$run/lifecycle.trace" -his_option trace_file -l "$$run/lifecycle.log" -dot state_space "$$run/lifecycle.states.dot"; \
+	  run_owned "$$run/lifecycle-validation.out" "$$PYTHON" .bin/generate-spec-prob.py validate --phase lifecycle --checker-output "$$run/lifecycle.out" --dot "$$run/lifecycle.states.dot" --trace "$$run/lifecycle.trace"; \
+	  stop_watcher; echo "Scenario A smoke: PASS ($$run)"'
+
+.PHONY: test-spec-prob
+test-spec-prob: ## Run deterministic Scenario A harness regressions
+	bash .bin/test-spec-prob-scenarios.sh
 
 .PHONY: help
 help: ## Show available targets

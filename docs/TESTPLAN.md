@@ -4,13 +4,6 @@ This document is the canonical test strategy for `points`. The authoritative
 behavioral design is `docs/spec/points.target.spec.tex`; tests translate that
 model into executable evidence at progressively wider system boundaries.
 
-## Current State
-
-The repository currently contains a CLI scaffold and one table-driven exit-code
-test in `cmd/points/main_test.go`. The functional suites described below are the
-required target as implementation proceeds. A layer is not considered present
-until its automated tests exist and pass.
-
 ## Principles
 
 1. **The specification defines the matrix.** Derive cases from the target Z
@@ -22,17 +15,16 @@ until its automated tests exist and pass.
 3. **Configuration snapshots are necessary but insufficient.** A valid-looking
    file does not prove a harness accepts it or that the intended upstream model
    serves the request.
-4. **Failure is non-destructive.** Every refused or interrupted operation must
-   leave the prior configuration intact.
-5. **Tests are deterministic.** Unit and default integration tests do not call
-   live vendors, depend on wall-clock timing, or share mutable home directories.
-6. **Real integrations require real evidence.** Acceptance of generated config
-   is established by running the actual harness; model routing is established by
-   harness telemetry and wire-level evidence, not by a response arriving.
-7. **Build the pyramid for every slice.** Each user-visible increment lands with
-   focused unit cases, fewer real-boundary integration or contract tests, and at
-   least one installed-binary end-to-end workflow. Do not postpone integration
-   and end-to-end evidence until all horizontal modules are complete.
+4. **Failure is commit-aware.** Refusals do not mutate the namespace and
+   pre-commit failures never publish a config. A publication that wins a race
+   remains committed; durability, cleanup, backup, and reporting remain
+   truthful rather than being reported as rolled back.
+5. **Tests are deterministic.** Default tests do not call live vendors, depend
+   on wall-clock timing, or share mutable home directories.
+6. **Real integrations require real evidence.** Harness telemetry and
+   wire-level evidence establish routing, not merely receipt of a response.
+7. **Build the pyramid for every slice.** Each user-visible increment includes
+   focused unit cases, fewer real-boundary tests, and an installed-binary flow.
 
 ## Traceability
 
@@ -46,194 +38,182 @@ Case names or adjacent comments identify the originating partition. A behavior
 change updates the Z specification first, re-runs fuzz and ProB verification,
 updates the partition matrix, and then changes tests and implementation.
 
-The core matrix includes at least:
+## Slice 1 Formal Partitions
 
-- Successful route and unroute operations
-- Source unreachable
-- Provider or model not served by the selected source
-- Harness/source protocol mismatch
-- Missing credential
-- Authentication mode not accepted by the source
-- Subscription authentication outside its entitlement
-- Malformed existing configuration
-- Non-Claude model selected for Claude Code
-- Partial or incoherent Claude tier aliases and overrides
-- Routable picker contents and rejection of unroutable choices
-- Verification pass and structured verification failures
+Slice 1 is the explicit-file OpenCode/Bifrost refinement in the target spec.
+Every row requires table-driven pure and CLI cases where applicable; a named
+operation or event boundary is not covered merely because it shares a public
+error code with another row.
+
+| Partition | Required coverage |
+|---|---|
+| `R-FIXTURE`, `R-INPUT` | Both exact models; same-provider unsupported model; missing, unknown, duplicate, conflicting, and invalid scalar flags; unsupported harness/source combination |
+| `R-FILE`, `JSON.Strict` | Absent/readable/unreadable/malformed; wrong-type relevant containers; decoded duplicate keys; invalid encoding; comments, trailing data, multiple documents, non-object root |
+| `R-FRAME`, `Conflict.Preservation` | Agents and maintenance pins, sessions, separate files, other providers, unrelated root fields, unselected metadata, and exact arbitrary numbers |
+| `R-NORMALIZE-FINITE` | Every finite owned-leaf state; exact changed/conflict pointers; backup-trigger biconditional; native and certified registration distinction; retention and repair rules; protected sentinels unchanged |
+| `R-SWITCH`, `Switch.AB` | A→B, B→A, A→A, endpoint change, unsupported request after success, and previous-registration retention |
+| `Conflict.None` | Missing/canonical values, missing registration, and root-default-only changes without backup |
+| `Conflict.Provider`, `Conflict.ModelVariant` | Every owned provider/model/variant overlay, inherited bypass, and selected registration correction |
+| `Conflict.Headers`, `Conflict.Body` | Every named header, prefix, scope, and body-model override; unrelated leaves retained |
+| `Backup.Exact`, `Backup.Secrets` | Original bytes and supported mode exactly; diagnostics never disclose original values or credentials |
+| `Backup.Collision`, `Backup.LateCollision` | Every destination entry type; early refusal without mutation; late operational abort and identity-safe cleanup |
+| `Path.Safe` | Unsafe ancestry, symlinks, owner/mode/ACL, hard links, special entries, missing parent, unsupported safe-operation semantics |
+| `Write.StageFaults`, `Write.BackupFaults` | Every nonce/create/write/short-write/mode/access/file-sync/close/link/parent-sync/unlink boundary |
+| `Write.CommitFaults`, `Write.PostCommit` | Rename/no-replace/revalidation failure; publication sync, cleanup, cancellation, and report failure after commit |
+| `Write.CleanupDurability` | Visible deletion versus directory-synced deletion and permitted crash resurrection |
+| `Cancel.Boundaries`, `Crash.Boundaries` | Early and post-local cancellation; every transaction boundary; publication race; pre-commit barrier; post-commit sync/cleanup; process death; paired crash choice |
+| `Concurrency.Cooperating`, `Concurrency.External` | Lock contention; external target edit retained; replacement identity never deleted |
+| `HTTP.Policy`, `HTTP.Redirect`, `HTTP.Bounds` | TLS, literal/mapped loopback, exact localhost, fresh consent, no redirect follow-up, deadline, body limit, no proxy/retry |
+| `V-LOCAL`, `V-LIVE`, `V-COMBINE` | Every local state, live finding, ordered gate and not-run reason; no credential/request after blocking local failure |
+| `V-TRUTH-TABLE` | Every cause-to-variant row; cancellation URL nullability; HTTP ranges; status/model nullability; report-failure precedence; total/exclusive producers |
+| `Status.Scope` | Every local state; unmanaged success; explicit-file label; no network, effective-layer, session, or generation claim |
+| `Output.Warning`, `Output.Contract`, `Output.EPIPE` | Every union/nullability/order/escaping/exit branch; warning cardinality; partial output and fallback diagnostic |
+| `Repeat.NoOp` | Exact bytes, inode, mtime, and artifact count; irrelevant backup collision bypassed |
+| `FS.Persistence` | Ordered delta subsequences; directory-sync outcomes; `FileImage` selectors; partial maps; finite reached-prefix alternatives with no future bytes |
+| `FS.Identity` | Destination ownership, cleanup obligations, retained results, tombstones, replacement-safe discharge with persistent anomaly notes, and restart without authority |
+| `FS.Transitions` | Fully framed phase-guarded operations; backup milestones; revalidation; commits; cancellation; cleanup inspection/sync; abort; process death; no operation from ended life |
+| `FS.BackupAbort` | Abort after backup-ready; replacement; unlink plus failed cleanup sync |
+| `FS.CrashImages` | Paired namespace/images, empty/partial/complete-unsynced stages, complete published config/backup, shared hard-link image |
+| `Output.RouteProducer` | Every I1–I6, L1–L7, W1–W9, D1, C1–C5, X1–X4, and O1–O2 event and every parameterized operation |
+
+### Route-producer combinations
+
+Cover refusal plus reporting failure; no-op plus cancellation/reporting failure;
+stage failure with successful and failed cleanup; backup-ready abort;
+publication plus cancellation; config-sync failure followed by successful sync;
+confirmed commit plus cleanup/report failure; independent refusal findings; and
+early versus publication-time backup collisions. Assert the complete variant,
+selection, commit/durability facts, backup, warnings, findings, residue, phase,
+exit, and streams. A registry test fails for any unmapped producer event.
+
+### Schema-negative matrix
+
+Reject inconsistent commit/durability, warning, verification, credential,
+cleanup, collision, selection, reporting, event, registration, cancellation,
+revalidation, stage-image, and replacement-cleanup combinations. In
+particular, reject future/unwritten crash bytes, transitions after ended life,
+an inexact normalizer changed/conflict set, and any result discriminator that
+disagrees with its independent facts.
 
 ## Test Layers
 
-### 1. Pure Core
+### Pure core
 
-`internal/route` computes configuration content from operator selection without
-filesystem, environment, network, or process I/O. This is the largest and
-fastest layer.
+`internal/route` tests are table-driven and perform no I/O. They cover source
+and harness compatibility, defaults, authentication, transitions, stable
+refusals, deterministic output, observations, normalization/conflicts/frame,
+registration/picker independence, route-event classification, result producer
+properties, and unroute preconditions/effects.
 
-Table-driven tests cover:
+### Harness writers and delivery backends
 
-- Source and harness compatibility
-- Default-model and provider validation
-- Authentication rules
-- Route and unroute state transitions
-- Claude canonicalization, overrides, background model, and tier aliases
-- Stable refusal codes and structured details
-- Deterministic output for identical input
+Tests use `t.TempDir()` and explicit dependencies. They assert decoded semantic
+content, stable user-visible rendering, exact paths and artifact counts,
+permissions, atomic replacement, durable backups, truthful commit outcomes,
+preservation, idempotence, ownership/cleanup obligations, and crash-oracle
+namespace/image pairing.
 
-Pure unit test files have no build tag and perform no I/O.
+### Catalog, source, and verification integration
 
-### 2. Harness Writers and Delivery Backends
+Injected clients and local servers cover discovery, timeout, cancellation,
+authentication, malformed responses, exact request shape, redirects, retries,
+proxy exclusion, deadline/body bounds, structured local/live findings, and
+catalog membership. Default tests do not call live vendors.
 
-Tests for `internal/harness` and `internal/backend` use `t.TempDir()` and explicit
-dependencies. They cover Claude Code, Codex, Pi, OpenCode, launcher output,
-direnv, mise, and Nix.
+### CLI, installed binary, and real harness
 
-Assertions include:
-
-- Exact decoded semantic content for JSON and TOML
-- Stable rendered text where formatting is user-visible
-- Exact generated artifact paths and counts
-- Required file and directory permissions
-- Atomic replacement and rollback after a staged failure
-- Preservation of unrelated user configuration
-- Removal of stale managed state without deleting user state
-- Idempotence when applying the same selection twice
-
-Golden files are appropriate only for final text representation. Semantic
-behavior is asserted against decoded structures.
-
-### 3. Catalog and Source Integration
-
-`internal/catalog` tests use an injected HTTP client and `httptest.Server`; they
-never depend on live Bifrost, OpenRouter, Anthropic, or OpenAI.
-
-Cases include:
-
-- Successful provider and model discovery
-- Timeout and context cancellation
-- Authentication failure
-- Malformed or empty responses
-- Source unavailable
-- Cache hit, miss, expiry, and corruption
-- Served provider with absent model
-- Picker filtering and deterministic ordering
-
-These service-boundary tests remain in the default suite when they use local
-test servers. Tests requiring real external services use the `integration` build
-tag and run in a separate CI stage.
-
-### 4. Verification Engine
-
-`internal/verify` returns structured findings consumed by human and JSON output.
-Tests assert finding codes and fields rather than matching only prose.
-
-The engine detects:
-
-- Missing route state
-- Disagreement among managed files and environment content
-- Protocol or authentication incompatibility
-- Unroutable defaults
-- Missing or partial Claude aliases and overrides
-- Malformed or stale managed configuration
-- Unreachable upstreams
-
-### 5. CLI Contract
-
-`cmd/points` tests cover the public process boundary:
-
-- Commands, arguments, and flag combinations
-- Help and version output
-- Stable exit statuses
-- stdout versus stderr separation
-- Human-readable and machine-readable output
-- Non-interactive behavior when stdin is not a terminal
-- Context cancellation and signal handling
-
-The current `TestRunExitCodes` test pins only the scaffold contract. It does not
-substitute for command behavior tests.
-
-### 6. Interactive TUI
-
-If the planned Huh-based wizard is added, it is a thin adapter over the same
-route core. Tests cover form-to-request mapping separately from terminal
-interaction.
-
-Mapping tests cover harness, source, authentication, and model selections plus
-cancellation. Terminal smoke tests cover keyboard navigation, validation
-feedback, small terminals, non-TTY fallback, and interruption without writes.
-No routing rule may exist only in TUI code.
-
-### 7. Installed-Binary Acceptance
-
-End-to-end tests build and execute the real binary as a subprocess in an
-isolated temporary home:
-
-```text
-HOME=<temporary directory>
-XDG_CONFIG_HOME=<temporary directory>
-```
-
-They drive complete user workflows through `points route`, `points status`,
-`points verify`, and `points unroute`. Tests assert exit status, stdout, stderr,
-the exact generated artifact set, configuration round trips, rollback, and the
-absence of writes outside the isolated home.
-
-Go files that drive the complete executable use the `e2e` build tag. Slower
-acceptance criteria that do not represent a full executable flow use the
-`acceptance` tag. Test types are not mixed in one file.
-
-### 8. Real-Harness Acceptance
-
-Selected release-gate tests run Claude Code, Codex, Pi, and OpenCode against the
-generated configuration. They prove each supported harness accepts the output
-and reaches the selected source.
-
-A route-switch sequence is mandatory:
-
-```text
-route A → run harness → observe A → route B → run harness → observe B
-```
-
-For model-routing claims, ground truth is the actual outbound model/provider and
-the harness's own usage telemetry. A successful answer alone is not proof that
-the selected model served it. Claude tier aliases, background requests, and
-OpenCode title or small-model requests are included because a working foreground
-request can hide a failed side request.
-
-Real-vendor tests are separately tagged and credential-gated. Missing credentials
-produce an explicit skip in local runs and a hard failure in the release job
-that promises to run them.
+CLI tests cover arguments, help/version, exits, streams, human/JSON output,
+noninteractive behavior, cancellation, and signals. Installed-binary tests use
+isolated `HOME` and `XDG_CONFIG_HOME` and assert round trips, artifacts,
+pre-/post-commit truth, and write confinement. Real-harness acceptance uses the
+actual OpenCode configuration and correlated upstream telemetry; tests do not
+override the root model or protected agent pins.
 
 ## Fault and Security Testing
 
-Configuration writing is security-sensitive. Tests cover:
+Cover path traversal, symlinks, unsafe ownership/permissions, missing or
+read-only parents, partial/interrupted writes, concurrency, hostile identifiers,
+malformed files, cancellation, bounded network operations, and secret
+redaction. Property and fuzz tests follow deterministic table coverage.
 
-- Path traversal and symlink attacks
-- Unsafe ownership or permissions
-- Read-only and missing parent directories
-- Interrupted and partial writes
-- Concurrent invocations and lock behavior
-- Hostile source, model, and provider identifiers
-- Corrupt caches and malformed existing files
-- Cancellation and bounded network operations
-- Secret redaction in errors, status, verification, and logs
-- Rollback when one operation in a multi-file update fails
+## Formal Verification Gate
 
-Property and fuzz tests should target parsers, merge logic, path handling, and
-state transitions after deterministic table coverage is in place.
+`docs/spec/points.target.spec.tex` is authoritative. Run formal checks through
+the named Make targets; `make spec` is fuzz type-checking and is not ProB
+evidence. Record ProB identity, exact commands and valuations, explored
+states/transitions, truncation status, reports, and witness/counterexample
+traces. Deliberate completed/process-dead states are not erroneous deadlocks.
+
+### Scenario A smoke gate
+
+Run the bounded walking skeleton only through its named targets:
+
+```sh
+make test-spec-prob
+make spec-prob-a-smoke
+```
+
+`test-spec-prob` covers malformed, missing, wrong-kind, and reordered source
+markers; deterministic generation; missing and duplicate persistent state
+assignments; missing checker verdicts; zero-state pseudo-success; checker
+failure; timeout; interruption; and concurrent evidence-directory isolation.
+`spec-prob-a-smoke` creates a unique run-owned directory beneath
+`.tmp/opencode/`, independently regenerates and type-checks the model, asks ProB
+for one concrete full-invariant initialization, and searches for one successful
+accepted-write lifecycle witness. It rejects setup failure, zero-state output,
+incomplete or duplicate valuations, incomplete inventories, missing goal
+verdicts, timeouts, invariant failures, empty traces, and incomplete exports.
+
+The smoke is intentionally not exhaustive evidence. It does not check M1/M2,
+all operation coverage, all terminal branches, backup, crash,
+external-disappearance, or normalizer/result refinement. Those partitions stay
+deferred. `CheckCleanupAlreadyAbsent` remains excluded until the modeled
+environment transition tracked by `points-yy5.1.4.1.1` exists.
+
+The checked model has exactly 60 transaction fields plus 24 monitor fields, 31
+wrapper operations, and six pending-delta slots. Its projection excludes the
+unused routing carriers and has Scenario A carrier cardinalities of 1 JSON
+pointer, 4 paths, 1 identity, 1 owner, 1 mode, 3 byte strings, 4 deltas, and 6
+file images. `Invariant` includes `ScenarioAFilesystemSemantics`, `TxnSafety`,
+and `MonitorSafety`; no operation assumes either safety predicate as a
+postcondition. Exact commands, inputs, hashes, tool identity, generated model,
+state graphs, and trace remain in the reported run directory.
+
+The tracked generator supersedes the historical embedded prototype recipe.
+Git history retains that provenance; the two named Make targets above are the
+only supported harness entry points. The generator requires the authoritative
+source markers' exact ordered identifiers and kinds.
+
+## Slice 1 Test Placement and Incremental Gates
+
+- `internal/route/opencode_test.go`: fixture/URL policy, observations,
+  normalization/conflicts/frame, exact numbers/pointers, route producers.
+- `cmd/points/main_test.go`: one case per event/boundary and public result,
+  dependency fault injection, output and exits; no production fault flags.
+- `internal/harness/transaction_test.go`: descriptors, locks, links, renames,
+  sync ordering, identity ownership, syscall faults, and crash oracle.
+- `internal/verify/opencode_test.go`: local TLS/HTTP/redirect fixtures, auth,
+  bounds, proxy/retry, catalog, and consent.
+- `tests/e2e/opencode_test.go` (`e2e`): installed binary workflows.
+- `tests/acceptance/opencode_test.go` (`acceptance`): actual harness loading,
+  tool turn, protected pins, and correlated identity.
+
+Delivery remains one completed Slice 1 PR through bounded nodes: walking
+skeleton; conflict/backup; observation/transport/output; failure/cleanup; actual
+harness. Every node installs the current binary and reruns the connected path.
 
 ## Go Test Conventions
 
 - Use table-driven tests and `t.Run` for input variations.
 - Use `testify/assert` for result assertions and `testify/require` for
   preconditions once the approved dependency enters `go.mod`.
-- Use `t.TempDir()` for filesystem tests.
-- Call `t.Helper()` in test helpers that report failures.
+- Use `t.TempDir()` for filesystem tests and `t.Helper()` in helpers.
 - Mirror source and test files where practical.
-- Keep default unit tests free of live network and process dependencies.
+- Keep default tests free of live network and process dependencies.
 - Use exactly one of `integration`, `e2e`, or `acceptance` on non-default test
   files; unit tests have no build tag.
 
-## Quality and CI Gates
+## Quality, CI, and Coverage
 
 Every default automated Go test invocation uses:
 
@@ -241,28 +221,15 @@ Every default automated Go test invocation uses:
 go test -race -count=1 ./...
 ```
 
-`make check` additionally runs:
+`make check` also runs pinned Go lint/format checks, Markdown lint, and
+`actionlint`. CI runs the default suite on Linux and macOS; release CI adds
+installed-artifact, tagged acceptance, real-harness, and distribution checks
+when those suites exist.
 
-- Pinned golangci-lint with `govet`, `staticcheck`, `unused`, `errcheck`,
-  `ineffassign`, `misspell`, and `gocyclo`
-- Go formatting verification
-- Markdown lint
-- GitHub Actions lint through `actionlint`
-
-CI runs the default suite on Linux and macOS. `govulncheck` runs on pull
-requests, pushes to `main`, and weekly. Release CI adds installed-artifact,
-tagged acceptance, real-harness, and distribution checks when those suites
-exist.
-
-## Coverage Policy
-
-`make coverage` is diagnostic. There is no percentage merge gate. A percentage
-does not demonstrate that important state partitions, refusals, and error paths
-were tested.
-
-Completeness is enforced through specification traceability, required tests with
-new behavior, exact artifact assertions, review for omitted failure paths,
-installed-binary workflows, race detection, and real-harness evidence.
+`make coverage` is diagnostic, not a percentage merge gate. Completeness comes
+from specification traceability, required partition tests, exact artifacts,
+failure-path review, installed-binary workflows, races, and real-harness
+evidence.
 
 ## Intended Layout
 

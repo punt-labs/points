@@ -387,6 +387,20 @@ The authoritative model is `docs/spec/points.target.spec.tex`. Run fuzz for type
 checking and ProB for invariant and deadlock checks. Tests derived from changed
 TTF partitions land with the implementation. See `docs/TESTPLAN.md`.
 
+Use the repository's named formal-tool entry points rather than copying checker
+commands from design notes:
+
+- `make spec` type-checks the authoritative target with fuzz.
+- `make spec-prob` checks the target document's assertion baseline.
+- `make test-spec-prob` runs the Scenario A generator/harness regressions.
+- `make spec-prob-a-smoke` generates a fresh bounded Scenario A model and seeks
+  one concrete initialization and one successful lifecycle witness.
+
+The Scenario A smoke retains a unique run-owned evidence directory and is an
+initialization/existence result only. It is not exhaustive, mutation, backup,
+crash, deadlock, or refinement evidence. Run stronger future partitions through
+their own reviewed Make targets; do not infer them from a smoke PASS.
+
 ## Completion Conditions
 
 A PR unit is complete only when:
