@@ -5,6 +5,11 @@ All notable changes to `points` are documented here. The format follows
 
 ## [Unreleased]
 
+### Removed
+
+- Retired team-registry leftovers under `.punt-labs/ethos/` (`.biff`,
+  `README.md`, `ethos.yaml`); the repo config is `.punt-labs/ethos.yaml`.
+
 ### Added
 
 - Repository scaffold: Go module + CLI skeleton (`cmd/points`) with the

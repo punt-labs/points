@@ -7,3 +7,4 @@ Claude-compatible tools must read and follow `AGENTS.md`; this file intentionall
 does not duplicate project policy. Tool-specific setup remains in
 `docs/SETUP.md`, and the Beads/Ethos development loop remains in
 `docs/WORKFLOW.md`.
+@.punt-labs/ethos/CLAUDE.md

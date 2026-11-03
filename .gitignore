@@ -184,6 +184,7 @@ timeline.xctimeline
 # template.
 
 # ethos runtime (never track) — DES-058 live zone + mission locks
+.punt-labs/**/*.ethos-tmp*
 .punt-labs/ethos/missions/**/*.lock
 .punt-labs/ethos/missions/
 .punt-labs/ethos/missions.jsonl
