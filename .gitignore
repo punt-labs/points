@@ -183,8 +183,7 @@ timeline.xctimeline
 # everything from here down; everything above is regenerated from the canonical
 # template.
 
-# ethos runtime (never track) — DES-058 live zone + mission locks
-.punt-labs/ethos/missions/**/*.lock
+# ethos: shared machine-local zone (never track)
 .punt-labs/ethos/missions/
 .punt-labs/ethos/missions.jsonl
 .punt-labs/ethos/missions.jsonl.lock
