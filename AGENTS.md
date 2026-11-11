@@ -106,3 +106,7 @@ them through thin end-to-end increments.
   reference.
 - Follow `docs/WORKFLOW.md` for the Beads graph, Ethos mission loop, gstack
   worker/evaluator assignments, evidence gates, and return paths.
+
+## Issue tracking
+
+Read `.punt-labs/punt/CLAUDE.md` before planning or writing to the issue tracker. Linear is the tracker of record where this repo is migrated. Beads is a local mirror there and the tracker of record elsewhere.
