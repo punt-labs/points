@@ -59,11 +59,13 @@ issue system. Use `--json` for agent-driven `bd` reads.
   `Feature`, `Improvement`, `Epic`); record acceptance criteria and design
   context on substantive issues there.
 - Link discovered work to its origin issue with a Linear `related` relation.
-- Finish completed work in Linear (state Done, with an evidence-based comment);
-  park work with the `deferred` label, supersede it, or flag human decisions
-  instead of leaving ambiguous status. A local `bd update`, `bd close` or
-  `bd create` is undone by the next pull of that issue (a local `bd create`
-  instead leaves an orphan bead with no `external_ref` that no pull removes).
+- Finish completed work in Linear (state Done, with an evidence-based comment),
+  then refresh its bead with `bd linear sync --pull --issues <PL id> --team
+  c1dfbb2c-985e-40cf-b004-5127646efc9d`; park work with the `deferred` label,
+  supersede it, or flag human decisions instead of leaving ambiguous status. A
+  local `bd update`, `bd close` or `bd create` is undone by the next pull of
+  that issue (a local `bd create` instead leaves an orphan bead with no
+  `external_ref` that no pull removes).
 - Blockers are `blocks` relations in Linear, mirrored with `bd dep add <bead>
   <blocker>` when the refresh ran without `--relations`.
 - Do not manually maintain the passive `.beads/issues.jsonl` export.
@@ -73,7 +75,9 @@ Use `bd --help` and `docs/WORKFLOW.md` for command details and lifecycle policy.
 ## Session Completion
 
 Before ending a work session: file remaining work in Linear, run applicable
-gates, write issue status in Linear, commit the intended changes, pull with
+gates, write issue status in Linear and refresh each changed bead with a by-id
+pull (`bd linear sync --pull --issues <PL id> --team
+c1dfbb2c-985e-40cf-b004-5127646efc9d`), commit the intended changes, pull with
 rebase, push, and verify the branch is current with its remote. Do not leave
 completed work only in a local tree. There is no beads sync step.
 
