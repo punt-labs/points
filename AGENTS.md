@@ -16,9 +16,10 @@ implementation to `gstack-implementer`; do not bypass the worker/evaluator map
 in `docs/WORKFLOW.md`. Open-weight models may work, but Ethos evaluators must be
 separate agents on preferred Bedrock OpenAI models.
 
-Treat discovered defects as work to resolve or track in Beads, not as a
+Treat discovered defects as work to resolve or track in Linear, not as a
 "pre-existing" excuse. Stay within the active task unless the defect threatens
-correctness, security, or completion; link follow-up work with `discovered-from`.
+correctness, security, or completion; link follow-up work to its origin issue
+with a Linear `related` relation and name the origin in the description.
 
 ## Product Invariants
 
@@ -40,26 +41,41 @@ OpenCode V2 is the default development harness. Claude Code, Pi, and Codex are
 occasional compatibility surfaces; do not let their configuration override or
 duplicate OpenCode project policy.
 
-## Issue Tracking with bd (beads)
+## Issue Tracking
 
-Use Beads as the only task tracker; do not create Markdown checklists or a
-second issue system. Use `--json` for agent-driven commands.
+Linear is the tracker of record: the Punt Labs team, issues labelled
+`repo:points`, listed in the shared `points` view. Epics are Linear projects
+("points: implement the routing config tool (epic)" is the first). Beads
+(`bd`) is a read-mostly local mirror; `.punt-labs/punt/CLAUDE.md` has the rules
+for which tracker to write to, and `.beads/README.md` has the mirror commands
+and the required `bd` build. Do not create Markdown checklists or a second
+issue system. Use `--json` for agent-driven `bd` reads.
 
-- Start with `bd ready --json` and atomically claim the selected issue.
-- Record acceptance criteria and design context on substantive issues.
-- Link discovered work with `discovered-from:<parent-id>`.
-- Close completed work with an evidence-based reason; defer, supersede, or flag
-  human decisions instead of leaving ambiguous status.
-- Beads writes auto-commit to its Dolt database; do not manually maintain the
-  passive `.beads/issues.jsonl` export.
+- Refresh the mirror, then start with
+  `bd ready --label-any repo:points --exclude-label deferred --json`; claim the
+  selected issue in Linear (state In Progress) and refresh its bead with a by-id
+  pull (`bd linear sync --pull --issues <PL id> --team <id>`).
+- Create issues in Linear with `repo:points` plus a type label (`Bug`,
+  `Feature`, `Improvement`, `Epic`); record acceptance criteria and design
+  context on substantive issues there.
+- Link discovered work to its origin issue with a Linear `related` relation.
+- Finish completed work in Linear (state Done, with an evidence-based comment);
+  park work with the `deferred` label, supersede it, or flag human decisions
+  instead of leaving ambiguous status. A local `bd update`, `bd close` or
+  `bd create` is undone by the next pull of that issue (a local `bd create`
+  instead leaves an orphan bead with no `external_ref` that no pull removes).
+- Blockers are `blocks` relations in Linear, mirrored with `bd dep add <bead>
+  <blocker>` when the refresh ran without `--relations`.
+- Do not manually maintain the passive `.beads/issues.jsonl` export.
 
 Use `bd --help` and `docs/WORKFLOW.md` for command details and lifecycle policy.
 
 ## Session Completion
 
-Before ending a work session: file remaining work, run applicable gates, update
-Beads, commit the intended changes, pull with rebase, push, and verify the branch
-is current with its remote. Do not leave completed work only in a local tree.
+Before ending a work session: file remaining work in Linear, run applicable
+gates, write issue status in Linear, commit the intended changes, pull with
+rebase, push, and verify the branch is current with its remote. Do not leave
+completed work only in a local tree. There is no beads sync step.
 
 
 ## Build & Test
@@ -104,8 +120,8 @@ them through thin end-to-end increments.
   secrets out of worker prompts/output and review every tool trace and diff.
 - Treat `docs/SETUP.md` as the canonical OpenCode 2, MCP, and tooling setup
   reference.
-- Follow `docs/WORKFLOW.md` for the Beads graph, Ethos mission loop, gstack
-  worker/evaluator assignments, evidence gates, and return paths.
+- Follow `docs/WORKFLOW.md` for the Linear work graph, Ethos mission loop,
+  gstack worker/evaluator assignments, evidence gates, and return paths.
 
 ## Issue tracking
 

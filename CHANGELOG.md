@@ -5,6 +5,14 @@ All notable changes to `points` are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Linear is the tracker of record (Punt Labs team, label `repo:points`);
+  beads is a scoped local mirror. `.beads/config.yaml` carries
+  `issue-prefix` and `linear.pull_label`, the routing-config-tool epic is a
+  Linear project, and the agent instructions no longer tell a session to
+  claim or close work with a local `bd` edit.
+
 ### Removed
 
 - Retired team-registry leftovers under `.punt-labs/ethos/` (`.biff`,

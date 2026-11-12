@@ -5,20 +5,26 @@ the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Before You Start
 
-Read `docs/SETUP.md`, then select and claim an unblocked Beads issue:
+Read `docs/SETUP.md`, then select an unblocked issue from the local beads
+mirror of Linear (refresh it first; `.beads/README.md` has the commands):
 
 ```bash
-bd ready --json
+bd ready --label-any repo:points --exclude-label deferred --json
 ```
+
+Claim it in Linear (state In Progress on the issue the bead's `external_ref`
+names), then refresh the bead by id:
 
 ```bash
-bd update <issue-id> --claim --json
+bd linear sync --pull --issues <PL id> --team c1dfbb2c-985e-40cf-b004-5127646efc9d
 ```
 
-For behavior or architecture changes, update the authoritative specification at
-`docs/spec/points.target.spec.tex` before implementation. Derive tests according
-to the canonical strategy in `docs/TESTPLAN.md` and execute work through the
-bounded Beads/Ethos loop in `docs/WORKFLOW.md`.
+Linear is the tracker of record; a local `bd update` or `bd close` is undone
+by the next pull. For behavior or architecture changes, update the
+authoritative specification at `docs/spec/points.target.spec.tex` before
+implementation. Derive tests according to the canonical strategy in
+`docs/TESTPLAN.md` and execute work through the bounded Linear/Ethos loop in
+`docs/WORKFLOW.md`.
 
 ## Quality Gates
 

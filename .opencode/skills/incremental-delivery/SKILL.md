@@ -1,6 +1,6 @@
 ---
 name: Incremental Delivery
-description: Decompose epics and substantive features into spikes, a walking skeleton, and thin end-to-end product increments with unit, integration, and real-entry-point evidence. Use before creating or restructuring Beads, planning implementation, dispatching a feature mission, or whenever proposed work is organized by modules/layers, a large diff may accumulate before it runs, integration is deferred, or the user asks for slices, XP, Agile, spikes, test pyramids, or incremental delivery.
+description: Decompose epics and substantive features into spikes, a walking skeleton, and thin end-to-end product increments with unit, integration, and real-entry-point evidence. Use before creating or restructuring Linear issues, planning implementation, dispatching a feature mission, or whenever proposed work is organized by modules/layers, a large diff may accumulate before it runs, integration is deferred, or the user asks for slices, XP, Agile, spikes, test pyramids, or incremental delivery.
 ---
 
 # Incremental delivery
@@ -33,7 +33,7 @@ Before implementation or mission dispatch:
 
 ## Required slice contract
 
-For every product-slice Bead, record:
+For every product-slice issue, record:
 
 - **Outcome and demo:** exact operator command/flow and observable result.
 - **Scope:** one supported happy path and the most important adjacent failure;
@@ -52,7 +52,7 @@ For every product-slice Bead, record:
   seam. After review, the leader creates the corresponding green commit.
 - **Merge boundary:** one reversible PR, integrated before widening the feature.
 
-Supporting module, documentation, design, and configuration Beads use
+Supporting module, documentation, design, and configuration issues use
 proportionate acceptance criteria for their artifact and the slice they support;
 they do not invent an installed-product demo. Spikes use the question/evidence/
 decision/code-disposition contract above instead of this product-slice contract.
@@ -72,7 +72,7 @@ Stop and reshape work when it proposes:
 
 ## Relationship to points workflow
 
-`docs/WORKFLOW.md` owns Beads, Ethos, PR, and evidence lifecycle. Use this skill
-to shape its delivery units: slice Beads are primary; module Beads support or
-harden them. `docs/TESTPLAN.md` owns the pyramid's detailed test boundaries, and
+`docs/WORKFLOW.md` owns the Linear issue, Ethos, PR, and evidence lifecycle. Use
+this skill to shape its delivery units: slice issues are primary; module issues
+support or harden them. `docs/TESTPLAN.md` owns the pyramid's detailed test boundaries, and
 `docs/spec/points.target.spec.tex` remains authoritative for modeled behavior.

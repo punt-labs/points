@@ -17,7 +17,7 @@ distinct. Evaluators are restricted to `gstack-architect` and
 open-weight `gstack-qa` as evaluator; create a separate Bedrock OpenAI evaluator
 if the map lacks the required expertise.
 
-Build the contract from the active Bead and cited artifacts:
+Build the contract from the active Linear issue and cited artifacts:
 
 - one purpose and output;
 - exact inputs and repository-relative write set;
@@ -60,8 +60,8 @@ expected value; never persist an artifact that fails correlation.
 
 ## Prerequisites
 
-Confirm `ethos doctor` is clean, the gstack team resolves, and the active Bead
-has acceptance criteria. The primary `build` agent owns dispatch and lifecycle;
+Confirm `ethos doctor` is clean, the gstack team resolves, and the active Linear
+issue has acceptance criteria. The primary `build` agent owns dispatch and lifecycle;
 children cannot delegate.
 
 ## Resources

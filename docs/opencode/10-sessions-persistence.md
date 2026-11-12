@@ -7,7 +7,7 @@ No universal session ID should replace the identifiers owned by each system:
 | System | Identifier | Owns |
 | --- | --- | --- |
 | OpenCode | `ses_…` | Conversation, model/agent selection, messages, children, forks, inbox, approvals, context |
-| Beads | `points-…` | Work item, priority, dependencies, acceptance criteria, status |
+| Linear | `PL-…` (mirrored as bead `points-…`) | Work item, priority, dependencies, acceptance criteria, status |
 | Ethos | `m-…`, `d-…` | Mission contract, worker/evaluator delegation, results, reflections, audit |
 | Circuit | `<machine>-<suffix>` | Durable workflow-machine state, observed checks, transition history |
 | Git | 40-character commit SHA | Immutable code state |
@@ -112,8 +112,8 @@ it externally while the service runs.
 
 List commands show top-level sessions and are location/project scoped; they are
 not a global workflow inventory. Use titles for human navigation and metadata
-for machine correlation. Beads, Ethos, Circuit, and GitHub remain the durable
-sources for their respective workflow state.
+for machine correlation. Linear, Ethos, Circuit, and GitHub remain the durable
+sources for their respective workflow state (beads is a local mirror of Linear).
 
 Delete only known disposable sessions. Never infer staleness from age alone:
 an old session may be the conversational link to an active Bead, mission, or

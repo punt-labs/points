@@ -80,15 +80,16 @@ The summary is also instructed to preserve consequential workflow state —
 whether changes are uncommitted, committed, pushed, under review, or merged — so
 a resumed agent does not lose track of where a branch or PR stands.
 
-## Durable Beads and Ethos recovery
+## Durable Linear, Beads and Ethos recovery
 
-Compaction does not store Beads or Ethos state; it only summarizes the
-conversation. Beads issues (central Hosted DoltDB) and Ethos mission records
-(per-checkout working tree) remain the durable sources and are re-read from their
-stores after compaction, not reconstructed from the summary. The checkpoint's
-role is to preserve identifiers and intent (which bead, which mission, what was
-decided) so the resumed agent knows which durable records to consult. Keep
-bead/mission IDs and status in the conversation so they survive into the summary.
+Compaction does not store Linear, Beads or Ethos state; it only summarizes the
+conversation. Linear issues (mirrored as beads in the central Hosted DoltDB)
+and Ethos mission records (per-checkout working tree) remain the durable
+sources and are re-read from their stores after compaction, not reconstructed
+from the summary. The checkpoint's role is to preserve identifiers and intent
+(which issue, which mission, what was decided) so the resumed agent knows
+which durable records to consult. Keep issue/mission IDs and status in the
+conversation so they survive into the summary.
 
 ## Tool output and media in the summary
 
@@ -96,8 +97,8 @@ The recent-context transcript trims long tool outputs (about 1,250 characters
 each) and omits reasoning, media bytes, and instruction updates; background shell
 output is left out of the retained recent part. Media is estimated for sizing only
 (images ≈ 1,500 tokens, PDFs ≈ 2,000). Do not rely on full tool output surviving
-compaction — persist anything that must outlast the window (a file, a bead, a
-commit), not the transcript.
+compaction — persist anything that must outlast the window (a file, a Linear
+issue, a commit), not the transcript.
 
 ## Maintenance-model routing
 
@@ -125,8 +126,8 @@ compaction/summary; a cheap, short model backs title.
 - Set the title maintenance model to `bifrost/openai/gpt-5.6-luna`, correcting a
   prior global-config drift where title pointed at an Anthropic model in
   violation of the maintenance-role routing policy.
-- Treat the checkpoint as conversation state only; rely on Beads, Ethos, Git, and
-  files for durable state, and keep their identifiers in the conversation so they
+- Treat the checkpoint as conversation state only; rely on Linear, Ethos, Git,
+  and files for durable state, and keep their identifiers in the conversation so they
   survive compaction.
 
 ## Runtime evidence
