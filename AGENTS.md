@@ -62,7 +62,8 @@ issue system. Use `--json` for agent-driven `bd` reads.
 - Finish completed work in Linear (state Done, with an evidence-based comment);
   park work with the `deferred` label, supersede it, or flag human decisions
   instead of leaving ambiguous status. A local `bd update`, `bd close` or
-  `bd create` is undone by the next pull.
+  `bd create` is undone by the next pull of that issue (a local `bd create`
+  instead leaves an orphan bead with no `external_ref` that no pull removes).
 - Blockers are `blocks` relations in Linear, mirrored with `bd dep add <bead>
   <blocker>` when the refresh ran without `--relations`.
 - Do not manually maintain the passive `.beads/issues.jsonl` export.

@@ -106,10 +106,13 @@ Beads and Ethos do **not** share the same storage model, and the difference
 matters when workers run in separate worktrees.
 
 - **Beads is shared.** Issues live in Linear and are mirrored into a central
-  Hosted DoltDB; there is no per-repo or per-worktree issue store. Every
-  worktree resolves the main checkout's `.beads/` through git's common
-  directory and sees one task graph; a pull from Linear therefore reads the
-  main checkout's `config.yaml`, not the worktree's copy.
+  Hosted DoltDB; there is no per-repo or per-worktree issue store, so every
+  checkout sees one task graph. But `.beads/config.yaml` is tracked, so each
+  worktree carries its own copy, and `bd` reads the `config.yaml` of the
+  checkout it runs in — a pull from a worktree uses that worktree's
+  `linear.pull_label`, not the main checkout's. Run a pull from a checkout
+  whose `config.yaml` carries `linear.pull_label: repo:points` (this branch
+  does); the main checkout lacks it until this PR merges.
 - **Ethos mission state is per-checkout.** Missions are working-tree files under
   `.punt-labs/ethos/missions/`, which is git-ignored by design — it is not stored
   in `.git`. Git worktrees share the common `.git` directory but each has its own

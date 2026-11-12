@@ -112,8 +112,8 @@ it externally while the service runs.
 
 List commands show top-level sessions and are location/project scoped; they are
 not a global workflow inventory. Use titles for human navigation and metadata
-for machine correlation. Beads, Ethos, Circuit, and GitHub remain the durable
-sources for their respective workflow state.
+for machine correlation. Linear, Ethos, Circuit, and GitHub remain the durable
+sources for their respective workflow state (beads is a local mirror of Linear).
 
 Delete only known disposable sessions. Never infer staleness from age alone:
 an old session may be the conversational link to an active Bead, mission, or

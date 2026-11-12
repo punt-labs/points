@@ -38,7 +38,9 @@ Do not create `graph.md`, `checks.md`, `progress.md`, Markdown task lists, or
 another issue queue. Those would duplicate Linear, Ethos, or Git and immediately
 create reconciliation work. The beads mirror is not a second queue: it is a
 read-only projection of Linear, and a local `bd update`, `bd close` or
-`bd create` is undone by the next pull (`.punt-labs/punt/CLAUDE.md`).
+`bd create` is undone by the next pull of that issue; a local `bd create`
+instead leaves an orphan bead with no `external_ref` that no pull removes
+(`.punt-labs/punt/CLAUDE.md`).
 
 ## Roles
 

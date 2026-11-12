@@ -97,8 +97,8 @@ The recent-context transcript trims long tool outputs (about 1,250 characters
 each) and omits reasoning, media bytes, and instruction updates; background shell
 output is left out of the retained recent part. Media is estimated for sizing only
 (images ≈ 1,500 tokens, PDFs ≈ 2,000). Do not rely on full tool output surviving
-compaction — persist anything that must outlast the window (a file, a bead, a
-commit), not the transcript.
+compaction — persist anything that must outlast the window (a file, a Linear
+issue, a commit), not the transcript.
 
 ## Maintenance-model routing
 
