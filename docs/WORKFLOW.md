@@ -69,7 +69,15 @@ Linear projects; "points: implement the routing config tool (epic)" holds the
 slice issues and the deferred module issues. The beads mirror carries the same
 graph locally: refresh it with
 `bd linear sync --pull-if-stale --relations --team c1dfbb2c-985e-40cf-b004-5127646efc9d`
-after confirming `bd config get linear.pull_label` prints `repo:points`.
+after confirming `bd config get linear.pull_label` prints `repo:points`. Two
+mirror caveats before trusting `bd ready`: `--pull-if-stale` skips the pull
+when its clock is fresh (under the threshold, or within the 5-minute
+debounce), so a just-claimed issue can still read ready locally — pass the
+issue id to a by-id pull, or drop `--pull-if-stale`, to force a refresh; and a
+pull adds `blocks` edges but removes none, so a blocker cleared in Linear
+stays on the bead until `bd dep remove <bead> <blocker>`, which can leave work
+that is ready in Linear hidden from `bd ready`. Linear is the record when the
+two disagree.
 
 Delivery units are thin end-to-end product increments, not horizontal modules.
 Use the `incremental-delivery` skill before creating or restructuring a feature

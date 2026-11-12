@@ -75,14 +75,19 @@ the scope, and hosted Dolt connectivity:
 bd setup opencode
 bd setup opencode --check
 bd config get linear.pull_label
+bd version   # commit must be at or after 769f8a1 (see .beads/README.md "bd version")
 bd linear sync --pull-if-stale --relations --team c1dfbb2c-985e-40cf-b004-5127646efc9d
 bd ready --label-any repo:points --exclude-label deferred --json
 bd list --label-any repo:points --status open --json
 ```
 
-`bd config get linear.pull_label` must print `repo:points` before any pull;
-anything else means this checkout is behind `main`, and a pull would import the
-whole Punt Labs team. The pull needs `LINEAR_API_KEY` from the canonical
+Before the first pull, `bd config get linear.pull_label` must print
+`repo:points` **and** the installed `bd` must enforce the label — its `bd
+version` commit must be at or after `769f8a1` (see `.beads/README.md` "bd
+version"). Anything else — a missing label, or an upstream or pre-#8 fork
+build — means a pull would import the whole Punt Labs team into the shared
+database as `points-*` beads. Install the fork build from the meta-repo with
+`.bin/install-bd.sh install` before pulling. The pull needs `LINEAR_API_KEY` from the canonical
 `.envrc`. The expected issues carry the `repo:points` label and a Linear URL in
 `external_ref`. A Dolt or Linear timeout is a service or network failure, not
 permission to use another issue tracker; retry after connectivity is restored.
