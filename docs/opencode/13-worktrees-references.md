@@ -98,16 +98,18 @@ For OpenCode v2.0.26, **do not adopt Jujutsu for this project yet.**
 Revisit only if (a) a jj VCS provider/worktree strategy exists for OpenCode, or
 (b) a concrete workflow need justifies a plugin, and only after verifying GitHub
 CLI, Beads Dolt sync, and Ethos hooks against a colocated repo. Until then, keep
-`points-p70` open as a watch item, not an action.
+PL-411 (bead `points-p70`) open as a watch item, not an action.
 
 ## Beads and Ethos state across worktrees
 
 Beads and Ethos do **not** share the same storage model, and the difference
 matters when workers run in separate worktrees.
 
-- **Beads is shared.** Issues live in a central Hosted DoltDB; there is no
-  per-repo or per-worktree issue store. Every worktree resolves the same
-  `issue_prefix` from `.beads/metadata.json` and sees one task graph.
+- **Beads is shared.** Issues live in Linear and are mirrored into a central
+  Hosted DoltDB; there is no per-repo or per-worktree issue store. Every
+  worktree resolves the main checkout's `.beads/` through git's common
+  directory and sees one task graph; a pull from Linear therefore reads the
+  main checkout's `config.yaml`, not the worktree's copy.
 - **Ethos mission state is per-checkout.** Missions are working-tree files under
   `.punt-labs/ethos/missions/`, which is git-ignored by design — it is not stored
   in `.git`. Git worktrees share the common `.git` directory but each has its own

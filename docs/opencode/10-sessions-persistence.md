@@ -7,7 +7,7 @@ No universal session ID should replace the identifiers owned by each system:
 | System | Identifier | Owns |
 | --- | --- | --- |
 | OpenCode | `ses_…` | Conversation, model/agent selection, messages, children, forks, inbox, approvals, context |
-| Beads | `points-…` | Work item, priority, dependencies, acceptance criteria, status |
+| Linear | `PL-…` (mirrored as bead `points-…`) | Work item, priority, dependencies, acceptance criteria, status |
 | Ethos | `m-…`, `d-…` | Mission contract, worker/evaluator delegation, results, reflections, audit |
 | Circuit | `<machine>-<suffix>` | Durable workflow-machine state, observed checks, transition history |
 | Git | 40-character commit SHA | Immutable code state |

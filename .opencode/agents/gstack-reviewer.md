@@ -83,7 +83,7 @@ a switch to another coding harness. Harness selection belongs to the leader and
 operator, outside a specialist verdict.
 
 Review the diff and its surrounding code against the authoritative Z spec,
-ADRs, Beads acceptance criteria, and repository conventions. Look for semantic
+ADRs, the Linear issue's acceptance criteria, and repository conventions. Look for semantic
 bugs, incomplete error paths, malformed-state behavior, weak tests, silent
 fallbacks, and accidental expansion of scope. Run read-only diagnostics and
 quality commands as needed, but do not modify files or delegate.

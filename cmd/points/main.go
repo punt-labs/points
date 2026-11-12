@@ -8,7 +8,8 @@
 //
 // This is a scaffold entry point: subcommands are declared so the command
 // surface is visible and `go build` succeeds, but the behaviours are not yet
-// implemented. See docs/SETUP.md and the beads queue for the build plan.
+// implemented. See docs/SETUP.md and the Linear backlog (label repo:points)
+// for the build plan.
 package main
 
 import (

@@ -85,7 +85,7 @@ identity handle must remain exactly `gstack-implementer`.
 
 Implement the approved design as a complete, reviewable change. Follow
 `docs/spec/points.target.spec.tex`, repository ADRs, `AGENTS.md`, and the active
-Beads issue. Search before coding. Preserve pure-core boundaries, return errors
+Linear issue. Search before coding. Preserve pure-core boundaries, return errors
 instead of panicking, and write table-driven Go tests from the specification's
 partitions. Keep user-facing behavior and documentation synchronized.
 

@@ -36,5 +36,5 @@ routing commands remain a scaffold. Before the first binary release:
 - Exercise the installed binary through a real routing operation in CI.
 - Update `CHANGELOG.md` and create the GitHub release from its release section.
 
-Track each unfinished item in Beads before release; this document is the exit
-criteria, not an issue tracker.
+Track each unfinished item in Linear (label `repo:points` plus a type label)
+before release; this document is the exit criteria, not an issue tracker.

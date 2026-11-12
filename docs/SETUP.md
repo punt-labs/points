@@ -64,21 +64,30 @@ direnv exec . env | grep '^BEADS_DOLT_SERVER_HOST='
 sets the repository-local `.tmp/` directory, and loads the gitignored
 `.envrc.local` last. Never put credentials in committed configuration.
 
-## 2. Beads
+## 2. Linear and the beads mirror
 
-The committed `.beads/` metadata uses the `points` issue prefix. Verify the
-OpenCode integration and hosted Dolt connectivity:
+Linear is the tracker of record (Punt Labs team, label `repo:points`); the
+committed `.beads/` metadata and `config.yaml` make `bd` a local mirror scoped
+to this repo with the `points` issue prefix. Verify the OpenCode integration,
+the scope, and hosted Dolt connectivity:
 
 ```sh
 bd setup opencode
 bd setup opencode --check
-bd ready --json
-bd list --status open --json
+bd config get linear.pull_label
+bd linear sync --pull-if-stale --relations --team c1dfbb2c-985e-40cf-b004-5127646efc9d
+bd ready --label-any repo:points --exclude-label deferred --json
+bd list --label-any repo:points --status open --json
 ```
 
-The expected issues carry the `repo:points` label. A Dolt timeout is a service
-or network failure, not permission to use another issue tracker; retry after
-connectivity is restored.
+`bd config get linear.pull_label` must print `repo:points` before any pull;
+anything else means this checkout is behind `main`, and a pull would import the
+whole Punt Labs team. The pull needs `LINEAR_API_KEY` from the canonical
+`.envrc`. The expected issues carry the `repo:points` label and a Linear URL in
+`external_ref`. A Dolt or Linear timeout is a service or network failure, not
+permission to use another issue tracker; retry after connectivity is restored.
+Write issue state in Linear, never with a local `bd` edit; `.beads/README.md`
+has the rules and the required `bd` build.
 
 ## 3. Ethos and the gstack team
 
@@ -380,4 +389,5 @@ bazel build //...
 bazel test //...
 ```
 
-Track completion in Beads rather than adding a Markdown task list.
+Track completion in Linear (PL-490, "points: verify Bazel build") rather than
+adding a Markdown task list.
