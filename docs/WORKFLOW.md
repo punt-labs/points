@@ -37,9 +37,11 @@ Each fact has one owner:
 Do not create `graph.md`, `checks.md`, `progress.md`, Markdown task lists, or
 another issue queue. Those would duplicate Linear, Ethos, or Git and immediately
 create reconciliation work. The beads mirror is not a second queue: it is a
-read-only projection of Linear, and a local `bd update`, `bd close` or
-`bd create` is undone by the next pull of that issue; a local `bd create`
-instead leaves an orphan bead with no `external_ref` that no pull removes
+read-mostly projection of Linear (reads, plus the sanctioned `bd dep
+add`/`remove` to mirror a Linear blocker edge), and a local `bd update`,
+`bd close` or `bd create` is undone by the next pull of that issue; a local
+`bd create` instead leaves an orphan bead with no `external_ref` that no pull
+removes
 (`.punt-labs/punt/CLAUDE.md`).
 
 ## Roles
@@ -134,7 +136,9 @@ Mark an issue Done in Linear only after its PR unit has passed local review and
 its applicable acceptance evidence, then refresh its bead with a by-id pull.
 User-visible product work also requires installed-artifact verification and the
 operator demo; other work classes use the proportionate checks named by their
-own criteria. If a PR is abandoned, move its issue back to Backlog in Linear.
+own criteria. If a PR is abandoned, move its issue back to Backlog in Linear,
+then refresh its bead with `bd linear sync --pull --issues <PL id> --team
+c1dfbb2c-985e-40cf-b004-5127646efc9d`.
 New work outside the current rollback unit becomes a new Linear issue with a
 `related` relation to its origin; defects inside the unit are fixed in the
 current PR.

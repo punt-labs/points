@@ -3,7 +3,7 @@
 # STATUS: UNVERIFIED. Bazel/bazelisk is not yet installed on the build host, so
 # this file is scaffolded correct-by-reference (rules_go + gazelle, current as
 # of authoring) but has not been run. The VERIFIED build is the Makefile + Go
-# toolchain. See docs/adr/0005-go-single-binary.md and the `bazel-verify` bead.
+# toolchain. See docs/adr/0005-go-single-binary.md and PL-490 (bead points-gve).
 #
 # Once bazelisk is installed:
 #   bazel run //:gazelle        # generate/update BUILD.bazel files
