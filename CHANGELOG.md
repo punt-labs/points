@@ -7,14 +7,14 @@ All notable changes to `points` are documented here. The format follows
 
 ### Changed
 
-- Linear is the tracker of record (Punt Labs team, label `repo:points`);
-  beads is a scoped local mirror. `.beads/config.yaml` carries
-  `issue-prefix` and `linear.pull_label`, the routing-config-tool epic is a
-  Linear project, and the agent instructions no longer tell a session to
-  claim or close work with a local `bd` edit.
+- Linear is the tracker of record (Punt Labs team, label `repo:points`); the
+  routing-config-tool epic is a Linear project.
 
 ### Removed
 
+- The local issue-database mirror: its config directory, `.envrc` connection block,
+  `.gitignore` and `.gitattributes` entries, the doctor check, and all
+  references in the docs.
 - Retired team-registry leftovers under `.punt-labs/ethos/` (`.biff`,
   `README.md`, `ethos.yaml`); the repo config is `.punt-labs/ethos.yaml`.
 
@@ -30,7 +30,7 @@ All notable changes to `points` are documented here. The format follows
   multi-source per-harness routing, Go single-binary choice, Claude Code
   complexity quarantine, and the spec-as-design-source decision.
 - `docs/TESTPLAN.md` — spec-driven layered test strategy.
-- `docs/WORKFLOW.md` — spec-first Beads and Ethos development loop.
+- `docs/WORKFLOW.md` — spec-first Linear and Ethos development loop.
 - Project-scoped OpenCode 2 `gopls` diagnostics and `gofmt` formatting.
 - Pass-backed authentication for the shared OpenCode service and documented
   Desktop, TUI, standalone, and network policy.
@@ -50,13 +50,13 @@ All notable changes to `points` are documented here. The format follows
   and current Ethos/Biff hook and notification validation.
 - Public GitHub repository with protected `main`, robust required CI, and an
   iterative Qodo, Cursor Bugbot, and Copilot review loop.
-- OpenCode session lifecycle and cross-system ID ownership for Beads, Ethos,
+- OpenCode session lifecycle and cross-system ID ownership for Linear, Ethos,
   Circuit, Git, and GitHub correlation.
 - OpenCode background work and concurrency: subagent/shell jobs, depth cap,
   steer/queue, completion notifications, cancellation, restart recovery, and
   write-set/worktree isolation.
 - OpenCode worktrees and references: git worktree strategy, reference sources,
-  VCS detection, external-directory boundary, shared Beads/Ethos state, and the
+  VCS detection, external-directory boundary, shared Linear/Ethos state, and the
   decision to defer Jujutsu adoption.
 - OpenCode compaction and context management: summary vs native compaction,
   reserved context, checkpoint shape, transcript independence, and maintenance
@@ -72,5 +72,5 @@ All notable changes to `points` are documented here. The format follows
   drift/health checks. Completes the OpenCode 2 configuration audit.
 - `docs/SETUP.md` — post-clone tool-enablement steps.
 - Makefile quality gate; Bazel scaffolding (unverified pending bazelisk).
-- Beads configuration (`issue_prefix: points`), canonical `.gitignore`,
+- Canonical `.gitignore`,
   markdownlint config, and CI workflow.
