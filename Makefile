@@ -107,7 +107,6 @@ tools: ## Install pinned development tools
 doctor: build check-dev ## Verify the CLI and local OpenCode development services
 	./$(BINARY) version
 	./$(BINARY) --help >/dev/null
-	@command -v bd >/dev/null || { echo 'bd is not installed'; exit 1; }
 	@command -v ethos >/dev/null || { echo 'ethos is not installed'; exit 1; }
 	@command -v opencode >/dev/null || { echo 'opencode is not installed'; exit 1; }
 	@direnv status >/dev/null 2>&1 || { echo "direnv has not allowed this repository; run 'direnv allow'"; exit 1; }

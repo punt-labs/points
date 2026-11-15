@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Plan our new CLI. I made tasks for the parser, domain core, API client, config writers, storage backends, status command, and then an integration phase. Turn this into a Beads graph we can start implementing.",
+      "prompt": "Plan our new CLI. I made tasks for the parser, domain core, API client, config writers, storage backends, status command, and then an integration phase. Turn this into a Linear issue graph we can start implementing.",
       "expected_output": "Rejects the horizontal delivery sequence; proposes a walking skeleton and ordered user-visible slices, preserves module work as supporting/hardening tasks, and gives every slice unit, integration, and installed-entry-point evidence.",
       "files": []
     },

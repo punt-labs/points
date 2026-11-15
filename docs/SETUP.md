@@ -18,7 +18,7 @@ Install these commands before continuing:
 - `direnv`
 - OpenCode 2 (`opencode`)
 - Go at the version declared in `go.mod`
-- `bd`, `ethos`, `quarry`, `lux`, `biff`, `vox`, and `beadle-email`
+- `ethos`, `quarry`, `lux`, `biff`, `vox`, and `beadle-email`
 - Node.js 22 or newer and `npx` for the Brave Search MCP
 - `gh` and `qodo`
 - `make`, `markdownlint-cli2`, and optionally `staticcheck`
@@ -57,42 +57,20 @@ it for this checkout:
 ```sh
 cp ../.bin/envrc-canonical.template ./.envrc
 direnv allow
-direnv exec . env | grep '^BEADS_DOLT_SERVER_HOST='
+direnv exec . env | grep '^TMPDIR='
 ```
 
-`.envrc` supplies the hosted Beads connection, resolves contributor secrets,
+`.envrc` resolves contributor secrets,
 sets the repository-local `.tmp/` directory, and loads the gitignored
 `.envrc.local` last. Never put credentials in committed configuration.
 
-## 2. Linear and the beads mirror
+## 2. Linear
 
-Linear is the tracker of record (Punt Labs team, label `repo:points`); the
-committed `.beads/` metadata and `config.yaml` make `bd` a local mirror scoped
-to this repo with the `points` issue prefix. Verify the OpenCode integration,
-the scope, and hosted Dolt connectivity:
-
-```sh
-bd setup opencode
-bd setup opencode --check
-bd config get linear.pull_label
-bd version   # commit must be at or after 769f8a1 (see .beads/README.md "bd version")
-bd linear sync --pull-if-stale --relations --team c1dfbb2c-985e-40cf-b004-5127646efc9d
-bd ready --label-any repo:points --exclude-label deferred --json
-bd list --label-any repo:points --status open --json
-```
-
-Before the first pull, `bd config get linear.pull_label` must print
-`repo:points` **and** the installed `bd` must enforce the label — its `bd
-version` commit must be at or after `769f8a1` (see `.beads/README.md` "bd
-version"). Anything else — a missing label, or an upstream or pre-#8 fork
-build — means a pull would import the whole Punt Labs team into the shared
-database as `points-*` beads. Install the fork build from the meta-repo with
-`.bin/install-bd.sh install` before pulling. The pull needs `LINEAR_API_KEY` from the canonical
-`.envrc`. The expected issues carry the `repo:points` label and a Linear URL in
-`external_ref`. A Dolt or Linear timeout is a service or network failure, not
-permission to use another issue tracker; retry after connectivity is restored.
-Write issue state in Linear, never with a local `bd` edit; `.beads/README.md`
-has the rules and the required `bd` build.
+Linear is the tracker of record (Punt Labs team, label `repo:points`). Read and
+write issues through the Linear MCP tools (`list_issues`, `get_issue`,
+`save_issue`); `.punt-labs/punt/CLAUDE.md` has the rules. An unreachable Linear
+is a service or network failure, not permission to use another issue tracker;
+retry after connectivity is restored.
 
 ## 3. Ethos and the gstack team
 

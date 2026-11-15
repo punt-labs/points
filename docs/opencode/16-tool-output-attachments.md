@@ -98,7 +98,7 @@ potential secret sink:
 A reviewer (human or an evaluator agent) that needs the evidence behind a
 truncated result opens `metadata.outputPath` (general tools) or pages the shell
 capture file. Because those files are unredacted and local, cite results in
-Beads/PRs as summaries or specific quoted lines, never by attaching the raw
+Linear issues and PRs as summaries or specific quoted lines, never by attaching the raw
 capture file.
 
 ## Decisions

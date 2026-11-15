@@ -7,7 +7,7 @@ durable state. It does not introduce parallel graph, check, or progress files.
 ## The Loop
 
 ```text
-Backlog loop (Linear, mirrored locally in Beads)
+Backlog loop (Linear)
   select one rollback-coherent unit
     PR loop (Git and GitHub)
       complete a reviewable, reversible change
@@ -26,7 +26,6 @@ Each fact has one owner:
 | Concern | Authority |
 | --- | --- |
 | Work graph, dependencies, status, priority | Linear (Punt Labs team, label `repo:points`) |
-| Next ready node, local read of the graph | Beads, as the scoped mirror of Linear |
 | Intended state transitions and invariants | `docs/spec/points.target.spec.tex` |
 | Executable acceptance matrix | TTF partitions and `docs/TESTPLAN.md` |
 | Delegation contract, worker, evaluator, rounds, results | Ethos mission |
@@ -36,20 +35,15 @@ Each fact has one owner:
 
 Do not create `graph.md`, `checks.md`, `progress.md`, Markdown task lists, or
 another issue queue. Those would duplicate Linear, Ethos, or Git and immediately
-create reconciliation work. The beads mirror is not a second queue: it is a
-read-mostly projection of Linear (reads, plus the sanctioned `bd dep
-add`/`remove` to mirror a Linear blocker edge), and a local `bd update`,
-`bd close` or `bd create` is undone by the next pull of that issue; a local
-`bd create` instead leaves an orphan bead with no `external_ref` that no pull
-removes
+create reconciliation work. Linear is the only issue queue
 (`.punt-labs/punt/CLAUDE.md`).
 
 ## Roles
 
 - **Operator:** owns product direction, ratifies substantive design choices, and
   confirms user-facing demos.
-- **Primary `build` agent:** leads the loop, writes issue state in Linear and
-  refreshes the beads mirror, creates Ethos missions, delegates work, verifies
+- **Primary `build` agent:** leads the loop, writes issue state in Linear,
+  creates Ethos missions, delegates work, verifies
   evidence, owns Git/GitHub operations, and never substitutes its own
   implementation for required specialist work.
 - **Worker:** one gstack subagent that owns one bounded mission result.
@@ -68,18 +62,9 @@ type label: `Bug`, `Feature`, `Improvement`, `Epic`) with description,
 acceptance criteria, design context, priority, and `blocks` relations. An
 issue is one rollback-coherent result, not a department-sized phase. Epics are
 Linear projects; "points: implement the routing config tool (epic)" holds the
-slice issues and the deferred module issues. The beads mirror carries the same
-graph locally: refresh it with
-`bd linear sync --pull-if-stale --relations --team c1dfbb2c-985e-40cf-b004-5127646efc9d`
-after confirming `bd config get linear.pull_label` prints `repo:points`. Two
-mirror caveats before trusting `bd ready`: `--pull-if-stale` skips the pull
-when its clock is fresh (under the threshold, or within the 5-minute
-debounce), so a just-claimed issue can still read ready locally — pass the
-issue id to a by-id pull, or drop `--pull-if-stale`, to force a refresh; and a
-pull adds `blocks` edges but removes none, so a blocker cleared in Linear
-stays on the bead until `bd dep remove <bead> <blocker>`, which can leave work
-that is ready in Linear hidden from `bd ready`. Linear is the record when the
-two disagree.
+slice issues and the deferred module issues. Read the graph with
+`list_issues` filtered to the `repo:points` label, and treat an issue as ready
+only when it is unclaimed, not `deferred`, and has no open `blocks` relation.
 
 Delivery units are thin end-to-end product increments, not horizontal modules.
 Use the `incremental-delivery` skill before creating or restructuring a feature
@@ -117,11 +102,9 @@ boundary, and observable result. It need not support every source, harness, or
 failure partition. It must run, merge, and become the base that later slices
 widen and refactor.
 
-Use `bd ready --label-any repo:points --exclude-label deferred --json` to
-choose unblocked work, claim it in Linear (state In Progress on the issue the
-bead's `external_ref` names), then refresh the bead with
-`bd linear sync --pull --issues <PL id> --team c1dfbb2c-985e-40cf-b004-5127646efc9d`.
-A by-id pull fetches only the named issue, which must carry `repo:points`.
+Use `list_issues` (label `repo:points`, excluding `deferred`, state Backlog or
+Todo) to choose unblocked work, then claim it by setting its Linear state to In
+Progress.
 
 ### Parallelism
 
@@ -133,12 +116,10 @@ not a dependency.
 ### Exit
 
 Mark an issue Done in Linear only after its PR unit has passed local review and
-its applicable acceptance evidence, then refresh its bead with a by-id pull.
+its applicable acceptance evidence.
 User-visible product work also requires installed-artifact verification and the
 operator demo; other work classes use the proportionate checks named by their
-own criteria. If a PR is abandoned, move its issue back to Backlog in Linear,
-then refresh its bead with `bd linear sync --pull --issues <PL id> --team
-c1dfbb2c-985e-40cf-b004-5127646efc9d`.
+own criteria. If a PR is abandoned, move its issue back to Backlog in Linear.
 New work outside the current rollback unit becomes a new Linear issue with a
 `related` relation to its origin; defects inside the unit are fixed in the
 current PR.
@@ -203,7 +184,7 @@ After accepted mission results accumulate:
 
 Push the branch, open the PR, and require all CI legs and review conversations to
 clear. A changed commit restarts the gate. Merge only the verified unit, then
-mark the issue Done in Linear, refresh its bead by id, and return to the backlog
+mark the issue Done in Linear and return to the backlog
 loop.
 
 ### Automated PR review loop
@@ -245,7 +226,7 @@ approval.
 Today, GitHub mechanically enforces required CI, Bugbot status, pull requests,
 and thread resolution. The leader enforces exact-head Qodo and Copilot review
 completion before merge because Qodo publishes a comment-only review rather
-than a check context. PL-407 (bead `points-6ja`) tracks a fail-closed
+than a check context. PL-407 tracks a fail-closed
 `review-gate` check once a scoped Qodo service credential is available; never
 put an unscoped personal Qodo key in Actions.
 
@@ -370,7 +351,7 @@ before the leader commits them. `make --eval`, `make -f`, inline recipes, and
 other indirection that executes commands outside approved canonical targets are
 permission bypasses and fail the mission.
 
-OpenCode, Beads, Ethos, Circuit, Git, and GitHub retain their own identifiers and
+OpenCode, Linear, Ethos, Circuit, Git, and GitHub retain their own identifiers and
 state authority. Correlate them through OpenCode session metadata and explicit
 contract/evidence fields rather than inventing one shared ID. See
 `docs/opencode/10-sessions-persistence.md` for the mapping and PR head-SHA rule.
@@ -470,9 +451,8 @@ A PR unit is complete only when:
 
 A new session reconstructs state in this order:
 
-1. `bd config get linear.pull_label` (must print `repo:points`), the mirror
-   refresh, then `bd ready --label-any repo:points --exclude-label deferred
-   --json` and `bd show <claimed-id> --json`
+1. The claimed Linear issue (`get_issue`) and the `repo:points` issues In
+   Progress (`list_issues`)
 2. Open Ethos missions, contracts, results, reflections, and logs
 3. Git branch, status, and recent commits
 4. The governing spec clauses and test partitions

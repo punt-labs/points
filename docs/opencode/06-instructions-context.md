@@ -8,7 +8,7 @@ OpenCode does not load `CLAUDE.md` as a fallback and does not interpret Claude
 other harnesses; it must not duplicate project policy.
 
 The root `AGENTS.md` contains only durable constraints that should accompany
-every request: product invariants, orchestration boundaries, Beads ownership,
+every request: product invariants, orchestration boundaries, issue-tracker ownership,
 session completion, quality gates, and canonical documentation links. Command
 catalogs and detailed procedures belong in tool help or `docs/`, not the
 always-loaded prompt.
@@ -54,9 +54,9 @@ the entire vendored identity registry into every model request.
 ## Token and duplication policy
 
 The earlier root instructions contained roughly 800 words, mostly generated
-Beads command documentation, while `CLAUDE.md` held a separate 500-word policy.
+issue-tracker command documentation, while `CLAUDE.md` held a separate 500-word policy.
 The OpenCode-forward root is now about 600 words and `CLAUDE.md` is a small
-pointer. Detailed Beads commands remain in `bd --help` and
+pointer. Detailed lifecycle policy remains in
 `docs/WORKFLOW.md`. This reduces always-loaded context and removes conflicting
 authorities without weakening the operational contract.
 

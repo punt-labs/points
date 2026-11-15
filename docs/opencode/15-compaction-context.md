@@ -80,10 +80,10 @@ The summary is also instructed to preserve consequential workflow state —
 whether changes are uncommitted, committed, pushed, under review, or merged — so
 a resumed agent does not lose track of where a branch or PR stands.
 
-## Durable Linear, Beads and Ethos recovery
+## Durable Linear and Ethos recovery
 
-Compaction does not store Linear, Beads or Ethos state; it only summarizes the
-conversation. Linear issues (mirrored as beads in the central Hosted DoltDB)
+Compaction does not store Linear or Ethos state; it only summarizes the
+conversation. Linear issues
 and Ethos mission records (per-checkout working tree) remain the durable
 sources and are re-read from their stores after compaction, not reconstructed
 from the summary. The checkpoint's role is to preserve identifiers and intent

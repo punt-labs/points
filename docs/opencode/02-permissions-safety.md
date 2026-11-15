@@ -18,7 +18,7 @@ access. Project rules add boundaries at the end of its resolved rule list:
 - Deny Desktop browser tools until a user-visible browser workflow is requested
   and reviewed.
 
-Routine repository reads, edits, tests, local Git operations, Beads work, and
+Routine repository reads, edits, tests, local Git operations, Linear work, and
 specialist delegation remain available. The operator approves effects that
 cross privilege, network, publication, communication, or session boundaries.
 PR merges are leader-owned and do not prompt; the merge gate in
