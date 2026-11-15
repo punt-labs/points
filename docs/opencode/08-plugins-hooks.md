@@ -42,7 +42,7 @@ model requests, HTTP bodies, retry decisions, tools, agents, or providers.
 ## Mature repository comparison
 
 Ethos, Quarry, Biff, Vox, and Beadle were inspected as references. Their local
-Git config is deliberately minimal: normal origin/branch tracking and, They do not add project OpenCode plugins. Mature
+Git config is deliberately minimal: normal origin/branch tracking. They do not add project OpenCode plugins. Mature
 tool integration is implemented through generated Git hooks and committed
 enablement markers.
 

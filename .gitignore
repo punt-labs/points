@@ -179,3 +179,6 @@ timeline.xctimeline
 .punt-labs/ethos/missions/
 .punt-labs/ethos/missions.jsonl
 .punt-labs/ethos/missions.jsonl.lock
+
+# Ignore any leftover local beads runtime state (tracker retired)
+.beads/
