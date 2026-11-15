@@ -1,6 +1,6 @@
 ---
 name: Punt Development Doctor
-description: Diagnose or verify the points development environment, OpenCode service, MCP roster, agent configuration, Ethos, Beads, and Punt Labs helper tools. Use for setup failures, stale services, missing agents/tools, credential-safe health checks, post-clone setup, or whenever OpenCode/toolchain configuration changes.
+description: Diagnose or verify the points development environment, OpenCode service, MCP roster, agent configuration, Ethos, Linear, and Punt Labs helper tools. Use for setup failures, stale services, missing agents/tools, credential-safe health checks, post-clone setup, or whenever OpenCode/toolchain configuration changes.
 ---
 
 # Punt development doctor
