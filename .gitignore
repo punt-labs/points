@@ -67,14 +67,6 @@
 .CLAUDE.md.punt-import.lock
 **/.create.lock
 
-# --- Beads runtime state ---
-.beads/bd.sock*
-.beads/beads.db*
-.beads/daemon-*
-.beads/daemon.log
-.beads/daemon-error
-.beads/.local_version
-
 # --- Scratch / temp ---
 # .tmp/ is the repo-local TMPDIR (set via .envrc). We keep the directory but
 # ignore its contents. Do NOT add a bare `*.tmp` pattern here — it would match
