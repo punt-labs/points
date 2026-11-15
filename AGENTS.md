@@ -45,41 +45,30 @@ duplicate OpenCode project policy.
 
 Linear is the tracker of record: the Punt Labs team, issues labelled
 `repo:points`, listed in the shared `points` view. Epics are Linear projects
-("points: implement the routing config tool (epic)" is the first). Beads
-(`bd`) is a read-mostly local mirror; `.punt-labs/punt/CLAUDE.md` has the rules
-for which tracker to write to, and `.beads/README.md` has the mirror commands
-and the required `bd` build. Do not create Markdown checklists or a second
-issue system. Use `--json` for agent-driven `bd` reads.
+("points: implement the routing config tool (epic)" is the first).
+`.punt-labs/punt/CLAUDE.md` has the rules for writing to the tracker. Do not
+create Markdown checklists or a second issue system.
 
-- Refresh the mirror, then start with
-  `bd ready --label-any repo:points --exclude-label deferred --json`; claim the
-  selected issue in Linear (state In Progress) and refresh its bead with a by-id
-  pull (`bd linear sync --pull --issues <PL id> --team <id>`).
+- Start from the unblocked, non-`deferred` `repo:points` issues
+  (`list_issues`); claim the selected issue by setting its state to In
+  Progress.
 - Create issues in Linear with `repo:points` plus a type label (`Bug`,
   `Feature`, `Improvement`, `Epic`); record acceptance criteria and design
   context on substantive issues there.
 - Link discovered work to its origin issue with a Linear `related` relation.
-- Finish completed work in Linear (state Done, with an evidence-based comment),
-  then refresh its bead with `bd linear sync --pull --issues <PL id> --team
-  c1dfbb2c-985e-40cf-b004-5127646efc9d`; park work with the `deferred` label,
-  supersede it, or flag human decisions instead of leaving ambiguous status. A
-  local `bd update`, `bd close` or `bd create` is undone by the next pull of
-  that issue (a local `bd create` instead leaves an orphan bead with no
-  `external_ref` that no pull removes).
-- Blockers are `blocks` relations in Linear, mirrored with `bd dep add <bead>
-  <blocker>` when the refresh ran without `--relations`.
-- Do not manually maintain the passive `.beads/issues.jsonl` export.
+- Finish completed work in Linear (state Done, with an evidence-based comment);
+  park work with the `deferred` label, supersede it, or flag human decisions
+  instead of leaving ambiguous status.
+- Blockers are `blocks` relations in Linear.
 
-Use `bd --help` and `docs/WORKFLOW.md` for command details and lifecycle policy.
+Use `docs/WORKFLOW.md` for lifecycle policy.
 
 ## Session Completion
 
 Before ending a work session: file remaining work in Linear, run applicable
-gates, write issue status in Linear and refresh each changed bead with a by-id
-pull (`bd linear sync --pull --issues <PL id> --team
-c1dfbb2c-985e-40cf-b004-5127646efc9d`), commit the intended changes, pull with
+gates, write issue status in Linear, commit the intended changes, pull with
 rebase, push, and verify the branch is current with its remote. Do not leave
-completed work only in a local tree. There is no beads sync step.
+completed work only in a local tree.
 
 
 ## Build & Test
@@ -129,4 +118,4 @@ them through thin end-to-end increments.
 
 ## Issue tracking
 
-Read `.punt-labs/punt/CLAUDE.md` before planning or writing to the issue tracker. Linear is the tracker of record where this repo is migrated. Beads is a local mirror there and the tracker of record elsewhere.
+Read `.punt-labs/punt/CLAUDE.md` before planning or writing to the issue tracker. Linear is the tracker of record.
