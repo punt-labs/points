@@ -42,8 +42,7 @@ model requests, HTTP bodies, retry decisions, tools, agents, or providers.
 ## Mature repository comparison
 
 Ethos, Quarry, Biff, Vox, and Beadle were inspected as references. Their local
-Git config is deliberately minimal: normal origin/branch tracking and, where
-used, `beads.role=maintainer`. They do not add project OpenCode plugins. Mature
+Git config is deliberately minimal: normal origin/branch tracking and, They do not add project OpenCode plugins. Mature
 tool integration is implemented through generated Git hooks and committed
 enablement markers.
 
@@ -66,8 +65,7 @@ to watch both `CI` and `Security`; it preserved the newer pinned actions,
 default-branch checkout, fork-secret boundary, and relay settings. Biff Git
 hooks deliberately ignore dispatch failures so communication cannot block Git.
 
-The shared `.gitattributes` rule delegates `.beads/issues.jsonl` merges to the
-Beads merge driver. `.gitignore` follows mature repos by excluding local
+`.gitignore` follows mature repos by excluding local
 credentials, runtime state, captures, worktrees, and per-clone settings while
 retaining committed tool markers and policy.
 

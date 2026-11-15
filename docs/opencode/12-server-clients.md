@@ -112,7 +112,7 @@ and `opencode api get /api/info`.
 
 Desktop and TUI are views over the same service, not independent authorities.
 Linear, Ethos, Git, and the formal specification remain the durable workflow
-state described in `docs/WORKFLOW.md` (beads is a local mirror of Linear).
+state described in `docs/WORKFLOW.md`.
 
 ## Verified Desktop Behavior
 
