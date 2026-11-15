@@ -184,7 +184,7 @@ After accepted mission results accumulate:
 
 Push the branch, open the PR, and require all CI legs and review conversations to
 clear. A changed commit restarts the gate. Merge only the verified unit, then
-mark the issue Done in Linear, refresh its bead by id, and return to the backlog
+mark the issue Done in Linear and return to the backlog
 loop.
 
 ### Automated PR review loop
@@ -226,7 +226,7 @@ approval.
 Today, GitHub mechanically enforces required CI, Bugbot status, pull requests,
 and thread resolution. The leader enforces exact-head Qodo and Copilot review
 completion before merge because Qodo publishes a comment-only review rather
-than a check context. PL-407 (bead `points-6ja`) tracks a fail-closed
+than a check context. PL-407 tracks a fail-closed
 `review-gate` check once a scoped Qodo service credential is available; never
 put an unscoped personal Qodo key in Actions.
 
