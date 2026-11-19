@@ -29,6 +29,10 @@ until its automated tests exist and pass.
 6. **Real integrations require real evidence.** Acceptance of generated config
    is established by running the actual harness; model routing is established by
    harness telemetry and wire-level evidence, not by a response arriving.
+7. **Build the pyramid for every slice.** Each user-visible increment lands with
+   focused unit cases, fewer real-boundary integration or contract tests, and at
+   least one installed-binary end-to-end workflow. Do not postpone integration
+   and end-to-end evidence until all horizontal modules are complete.
 
 ## Traceability
 

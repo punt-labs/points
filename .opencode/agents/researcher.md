@@ -1,7 +1,7 @@
 ---
 description: Researches across Quarry and current web sources; use for questions requiring local knowledge, current documentation, external evidence, and cited synthesis.
 mode: subagent
-model: bifrost/bedrock/gpt-5.6-terra
+model: bifrost/openai/gpt-5.6-terra
 variant: medium
 color: "#059669"
 steps: 40

@@ -5,20 +5,13 @@ the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Before You Start
 
-Read `docs/SETUP.md`, then select and claim an unblocked Beads issue:
-
-```bash
-bd ready --json
-```
-
-```bash
-bd update <issue-id> --claim --json
-```
-
-For behavior or architecture changes, update the authoritative specification at
-`docs/spec/points.target.spec.tex` before implementation. Derive tests according
-to the canonical strategy in `docs/TESTPLAN.md` and execute work through the
-bounded Beads/Ethos loop in `docs/WORKFLOW.md`.
+Read `docs/SETUP.md`, then select an unblocked `repo:points` issue in Linear
+(not `deferred`, no open `blocks` relation) and claim it by setting its state to
+In Progress. Linear is the tracker of record. For behavior or architecture changes, update the
+authoritative specification at `docs/spec/points.target.spec.tex` before
+implementation. Derive tests according to the canonical strategy in
+`docs/TESTPLAN.md` and execute work through the bounded Linear/Ethos loop in
+`docs/WORKFLOW.md`.
 
 ## Quality Gates
 

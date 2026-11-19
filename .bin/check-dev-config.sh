@@ -49,6 +49,9 @@ for agent in "${agents[@]}"; do
     fail "$file is disabled"
   fi
 done
+if grep -RqsE '^model: bifrost/bedrock/gpt-(5\.6|6)-' .opencode/agents; then
+  fail 'preferred OpenAI agents must use the current bifrost/openai namespace, not stale bifrost/bedrock routes'
+fi
 
 for file in .opencode/agents/gstack-*.md; do
   if awk '
@@ -60,6 +63,22 @@ for file in .opencode/agents/gstack-*.md; do
     fail "$file has wildcard shell access"
   fi
 done
+if grep -Rqs 'resource: "make \*"' .opencode/agents/gstack-*.md; then
+  fail 'gstack agents must not have wildcard make access; inline make recipes bypass the shell allowlist'
+fi
+bad_make=$(grep -h 'resource: "make' .opencode/agents/gstack-*.md |
+  grep -Ev '^    resource: "make( (build|check|check-dev|coverage|spec|spec-prob|test))?"$' || true)
+test -z "$bad_make" || fail "gstack make allowlist contains unapproved forms: $bad_make"
+if grep -RqsE 'resource: "git (add|commit|push)' .opencode/agents/gstack-*.md; then
+  fail 'gstack agents must not mutate Git; the build leader owns staging, commits, and pushes'
+fi
+
+python3 ./.bin/check-agent-permissions.py .opencode/agents/gstack-implementer.md ||
+  fail 'gstack-implementer permission policy differs from the complete approved rule set'
+grep -Fq 'you may not authorize or direct' .opencode/agents/gstack-reviewer.md ||
+  fail 'gstack-reviewer must not direct development-harness changes'
+grep -Fq 'reviewer recommendation alone is never authority' docs/WORKFLOW.md ||
+  fail 'docs/WORKFLOW.md must reserve harness changes to leader/operator decisions'
 
 ./.bin/check-ethos-evaluator-models.sh
 
@@ -74,11 +93,28 @@ if grep -RqsE 'run: (make )?doctor($| )' .github/workflows; then
   fail 'public CI must not run workstation-only make doctor'
 fi
 
-expected_skills='agent-mail ethos-mission punt-dev-doctor quarry-capture quarry-recall'
+expected_skills='agent-mail ethos-mission incremental-delivery punt-dev-doctor quarry-capture quarry-recall'
 actual_skills=$(find .opencode/skills -mindepth 2 -maxdepth 2 -name SKILL.md \
   -printf '%h\n' | xargs -r -n1 basename | sort | xargs)
 test "$actual_skills" = "$expected_skills" ||
   fail "project skill roster differs: expected [$expected_skills], got [$actual_skills]"
+grep -Fq 'Use the `incremental-delivery` skill before decomposing epics' AGENTS.md ||
+  fail 'AGENTS.md must require incremental-delivery for feature decomposition'
+grep -Fq 'Use the `incremental-delivery` skill before creating or restructuring a feature' docs/WORKFLOW.md ||
+  fail 'docs/WORKFLOW.md must define the incremental-delivery gate'
+grep -Fq 'Project specialists cannot mutate Ethos: the worker returns a' .opencode/skills/ethos-mission/SKILL.md ||
+  fail 'ethos-mission skill must route specialist-authored artifacts through the leader'
+grep -Fq 'Project specialists intentionally lack Ethos mutation access' docs/WORKFLOW.md ||
+  fail 'docs/WORKFLOW.md must assign Ethos persistence to the leader'
+test -x .bin/extract-subagent-result.sh ||
+  fail 'mission result extractor must exist and be executable'
+test -x .bin/test-extract-subagent-result.sh ||
+  fail 'mission result extractor regression test must exist and be executable'
+grep -Fq 'extract-subagent-result.sh' .opencode/skills/ethos-mission/SKILL.md ||
+  fail 'ethos-mission skill must require session/mission result correlation'
+test -x .bin/test-spec-prob-cleanup.sh ||
+  fail 'spec-prob cleanup regression test must exist and be executable'
+./.bin/test-spec-prob-cleanup.sh
 
 for skill in $expected_skills; do
   file=".opencode/skills/${skill}/SKILL.md"

@@ -43,5 +43,5 @@ Rationale over the alternatives:
 
 The verified build is the **Makefile + Go toolchain**. **Bazel** scaffolding
 (`MODULE.bazel`, `BUILD.bazel`) is present per a stated migration goal but is
-**unverified** — bazelisk is not yet installed on the build host. A `bazel-verify`
-bead tracks running `bazel run //:gazelle` + `bazel build //...` once it is.
+**unverified** — bazelisk is not yet installed on the build host. PL-490 (bead
+points-gve) tracks running `bazel run //:gazelle` + `bazel build //...` once it is.

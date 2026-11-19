@@ -18,7 +18,7 @@ Install these commands before continuing:
 - `direnv`
 - OpenCode 2 (`opencode`)
 - Go at the version declared in `go.mod`
-- `bd`, `ethos`, `quarry`, `lux`, `biff`, `vox`, and `beadle-email`
+- `ethos`, `quarry`, `lux`, `biff`, `vox`, and `beadle-email`
 - Node.js 22 or newer and `npx` for the Brave Search MCP
 - `gh` and `qodo`
 - `make`, `markdownlint-cli2`, and optionally `staticcheck`
@@ -57,28 +57,20 @@ it for this checkout:
 ```sh
 cp ../.bin/envrc-canonical.template ./.envrc
 direnv allow
-direnv exec . env | grep '^BEADS_DOLT_SERVER_HOST='
+direnv exec . env | grep '^TMPDIR='
 ```
 
-`.envrc` supplies the hosted Beads connection, resolves contributor secrets,
+`.envrc` resolves contributor secrets,
 sets the repository-local `.tmp/` directory, and loads the gitignored
 `.envrc.local` last. Never put credentials in committed configuration.
 
-## 2. Beads
+## 2. Linear
 
-The committed `.beads/` metadata uses the `points` issue prefix. Verify the
-OpenCode integration and hosted Dolt connectivity:
-
-```sh
-bd setup opencode
-bd setup opencode --check
-bd ready --json
-bd list --status open --json
-```
-
-The expected issues carry the `repo:points` label. A Dolt timeout is a service
-or network failure, not permission to use another issue tracker; retry after
-connectivity is restored.
+Linear is the tracker of record (Punt Labs team, label `repo:points`). Read and
+write issues through the Linear MCP tools (`list_issues`, `get_issue`,
+`save_issue`); `.punt-labs/punt/CLAUDE.md` has the rules. An unreachable Linear
+is a service or network failure, not permission to use another issue tracker;
+retry after connectivity is restored.
 
 ## 3. Ethos and the gstack team
 
@@ -242,6 +234,14 @@ MCP servers initialize asynchronously. After a restart or config change, allow
 the local servers time to load before treating a partial list as a failure; run
 `opencode mcp list` again after startup settles.
 
+The project gives MCP initialization a 120-second startup budget and a
+60-second catalog budget. OpenCode's 30-second startup default is too short when
+multiple active locations cold-start separate local MCP process sets at once;
+late initialization responses then appear as unknown request IDs after the
+original connection has already timed out. Preserve the explicit V2
+`mcp.timeout.startup` setting rather than relying on legacy scalar timeout
+normalization.
+
 Protect the shared local service with the pass-backed password procedure in
 `docs/opencode/12-server-clients.md`. An unauthenticated `/api/info` request must
 return HTTP 401 while normal OpenCode CLI and Desktop clients continue to work.
@@ -260,6 +260,9 @@ reach the Hub tool surface.
 - **A server is absent:** confirm `opencode debug config` includes the project
   document `opencode.json` and its `mcp.servers`, then restart OpenCode from the
   repository root.
+- **Inspecting loaded config:** never print or save raw `/api/config`; provider
+  substitutions may contain resolved credentials. Pipe directly to a narrow
+  `jq` projection and emit only the non-secret fields required for diagnosis.
 - **Context7 fails authentication:** confirm `CONTEXT7_API_KEY` is non-empty in
   `direnv exec . env` without printing its value, then verify the secret-store
   entry documented by the canonical `.envrc`.
@@ -290,9 +293,12 @@ OpenAI routes; QA exercises Bedrock GPT-OSS 120B as an open-weight model. All
 except `gstack-implementer` are
 read-only.
 
-OpenCode 2 does not retain the V1 `subagent_depth` compatibility field in its
-native resolved config. The exemplar therefore enforces one-level delegation
-directly: every specialist ends with a `subagent: deny` permission rule.
+OpenCode 2 moved the top-level V1 `subagent_depth` field to
+`experimental.subagent_depth` (default `1`), which caps subagent nesting by
+walking the `parentID` chain. The exemplar leaves it at the default and does not
+rely on the cap alone: every specialist runs on a deny-all permission baseline
+with no `subagent` grant, so a specialist cannot delegate regardless of depth.
+See `docs/opencode/11-background-concurrency.md` for the full concurrency model.
 
 These files are temporary authored sources until Ethos can generate OpenCode 2
 agents. Future generation must flow from the Ethos registry to
@@ -302,6 +308,11 @@ generated targets.
 After changing an agent file, restart OpenCode, then verify the resolved roster.
 Do not use `opencode reload` for this workflow: reloading can disconnect local
 MCP child processes in the running session.
+
+Preferred GPT agents also require the Bifrost provider to use OpenCode's
+`openai-compatible/responses` runtime. `make doctor` checks the effective package
+and runs a disposable real tool-capable product-agent turn; a model merely
+appearing in `opencode models` is not sufficient health evidence.
 
 ```sh
 opencode debug agents
@@ -361,4 +372,5 @@ bazel build //...
 bazel test //...
 ```
 
-Track completion in Beads rather than adding a Markdown task list.
+Track completion in Linear (PL-490, "points: verify Bazel build") rather than
+adding a Markdown task list.

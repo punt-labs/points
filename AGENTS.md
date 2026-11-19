@@ -10,14 +10,16 @@ exits; it is not a proxy or daemon.
 
 The primary OpenCode `build` agent is the orchestrator. It decomposes work,
 maintains specifications, dispatches bounded work to the gstack specialists,
-evaluates evidence, and owns branches, pull requests, and merges. Delegate Go
+evaluates evidence, and owns branches, staging, commits, pushes, pull requests,
+and merges. Specialists return edits and evidence but never mutate Git. Delegate Go
 implementation to `gstack-implementer`; do not bypass the worker/evaluator map
 in `docs/WORKFLOW.md`. Open-weight models may work, but Ethos evaluators must be
 separate agents on preferred Bedrock OpenAI models.
 
-Treat discovered defects as work to resolve or track in Beads, not as a
+Treat discovered defects as work to resolve or track in Linear, not as a
 "pre-existing" excuse. Stay within the active task unless the defect threatens
-correctness, security, or completion; link follow-up work with `discovered-from`.
+correctness, security, or completion; link follow-up work to its origin issue
+with a Linear `related` relation and name the origin in the description.
 
 ## Product Invariants
 
@@ -39,26 +41,34 @@ OpenCode V2 is the default development harness. Claude Code, Pi, and Codex are
 occasional compatibility surfaces; do not let their configuration override or
 duplicate OpenCode project policy.
 
-## Issue Tracking with bd (beads)
+## Issue Tracking
 
-Use Beads as the only task tracker; do not create Markdown checklists or a
-second issue system. Use `--json` for agent-driven commands.
+Linear is the tracker of record: the Punt Labs team, issues labelled
+`repo:points`, listed in the shared `points` view. Epics are Linear projects
+("points: implement the routing config tool (epic)" is the first).
+`.punt-labs/punt/CLAUDE.md` has the rules for writing to the tracker. Do not
+create Markdown checklists or a second issue system.
 
-- Start with `bd ready --json` and atomically claim the selected issue.
-- Record acceptance criteria and design context on substantive issues.
-- Link discovered work with `discovered-from:<parent-id>`.
-- Close completed work with an evidence-based reason; defer, supersede, or flag
-  human decisions instead of leaving ambiguous status.
-- Beads writes auto-commit to its Dolt database; do not manually maintain the
-  passive `.beads/issues.jsonl` export.
+- Start from the unblocked, non-`deferred` `repo:points` issues
+  (`list_issues`); claim the selected issue by setting its state to In
+  Progress.
+- Create issues in Linear with `repo:points` plus a type label (`Bug`,
+  `Feature`, `Improvement`, `Epic`); record acceptance criteria and design
+  context on substantive issues there.
+- Link discovered work to its origin issue with a Linear `related` relation.
+- Finish completed work in Linear (state Done, with an evidence-based comment);
+  park work with the `deferred` label, supersede it, or flag human decisions
+  instead of leaving ambiguous status.
+- Blockers are `blocks` relations in Linear.
 
-Use `bd --help` and `docs/WORKFLOW.md` for command details and lifecycle policy.
+Use `docs/WORKFLOW.md` for lifecycle policy.
 
 ## Session Completion
 
-Before ending a work session: file remaining work, run applicable gates, update
-Beads, commit the intended changes, pull with rebase, push, and verify the branch
-is current with its remote. Do not leave completed work only in a local tree.
+Before ending a work session: file remaining work in Linear, run applicable
+gates, write issue status in Linear, commit the intended changes, pull with
+rebase, push, and verify the branch is current with its remote. Do not leave
+completed work only in a local tree.
 
 
 ## Build & Test
@@ -83,6 +93,8 @@ or local development-environment configuration.
 is `docs/spec/points.target.spec.tex`. The planned implementation separates the
 pure route calculation from source catalogs, per-harness writers, delivery
 backends, and verification; see `internal/doc.go` and `DESIGN.md`.
+Those are architecture boundaries, not the delivery sequence: evolve and harden
+them through thin end-to-end increments.
 
 ## Conventions & Patterns
 
@@ -91,9 +103,19 @@ backends, and verification; see `internal/doc.go` and `DESIGN.md`.
 - Keep routing and default-model configuration separate from user-owned agent
   model choices.
 - Derive table-driven tests from the specification partitions.
+- Use the `incremental-delivery` skill before decomposing epics or dispatching
+  substantive feature implementation. Prefer spikes and thin running slices
+  through the real CLI over completing horizontal modules before integration.
 - Use the built-in OpenCode `build` agent as primary orchestrator and the six
   `.opencode/agents/gstack-*.md` specialists for delegated work.
+- Treat specialist shell permissions as workflow guardrails, not security
+  containment: write-enabled code can influence build/test execution. Keep
+  secrets out of worker prompts/output and review every tool trace and diff.
 - Treat `docs/SETUP.md` as the canonical OpenCode 2, MCP, and tooling setup
   reference.
-- Follow `docs/WORKFLOW.md` for the Beads graph, Ethos mission loop, gstack
-  worker/evaluator assignments, evidence gates, and return paths.
+- Follow `docs/WORKFLOW.md` for the Linear work graph, Ethos mission loop,
+  gstack worker/evaluator assignments, evidence gates, and return paths.
+
+## Issue tracking
+
+Read `.punt-labs/punt/CLAUDE.md` before planning or writing to the issue tracker. Linear is the tracker of record.

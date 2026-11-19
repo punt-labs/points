@@ -67,14 +67,6 @@
 .CLAUDE.md.punt-import.lock
 **/.create.lock
 
-# --- Beads runtime state ---
-.beads/bd.sock*
-.beads/beads.db*
-.beads/daemon-*
-.beads/daemon.log
-.beads/daemon-error
-.beads/.local_version
-
 # --- Scratch / temp ---
 # .tmp/ is the repo-local TMPDIR (set via .envrc). We keep the directory but
 # ignore its contents. Do NOT add a bare `*.tmp` pattern here — it would match
@@ -183,8 +175,10 @@ timeline.xctimeline
 # everything from here down; everything above is regenerated from the canonical
 # template.
 
-# ethos runtime (never track) — DES-058 live zone + mission locks
-.punt-labs/ethos/missions/**/*.lock
+# ethos: shared machine-local zone (never track)
 .punt-labs/ethos/missions/
 .punt-labs/ethos/missions.jsonl
 .punt-labs/ethos/missions.jsonl.lock
+
+# Ignore any leftover local beads runtime state (tracker retired)
+.beads/

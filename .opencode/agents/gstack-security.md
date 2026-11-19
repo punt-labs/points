@@ -1,7 +1,7 @@
 ---
 description: Threat-models routing, credentials, configuration writes, and dependencies; use for security-sensitive changes and release review.
 mode: subagent
-model: bifrost/bedrock/gpt-6-astra
+model: bifrost/openai/gpt-6-astra
 variant: high
 color: "#dc2626"
 steps: 32
@@ -40,7 +40,25 @@ permissions:
     resource: "go list *"
     effect: allow
   - action: shell
-    resource: "make *"
+    resource: "make"
+    effect: allow
+  - action: shell
+    resource: "make build"
+    effect: allow
+  - action: shell
+    resource: "make check"
+    effect: allow
+  - action: shell
+    resource: "make check-dev"
+    effect: allow
+  - action: shell
+    resource: "make coverage"
+    effect: allow
+  - action: shell
+    resource: "make spec"
+    effect: allow
+  - action: shell
+    resource: "make test"
     effect: allow
   - action: shell
     resource: "./points *"

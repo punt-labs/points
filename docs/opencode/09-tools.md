@@ -94,7 +94,7 @@ for Jujutsu detection/status/diff, but native Jujutsu workspace creation and
 removal remain out of scope. Git worktrees are not Jujutsu workspaces. A linked
 Bead defers installation and colocated initialization to area 13 after the
 baseline commit, with explicit verification of OpenCode version support,
-GitHub, Beads, Ethos hooks, bookmarks/push, and agent shell rules.
+GitHub, Ethos hooks, bookmarks/push, and agent shell rules.
 The follow-up is `points-p70`.
 
 ## Validation

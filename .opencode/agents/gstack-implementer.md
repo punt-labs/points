@@ -1,7 +1,7 @@
 ---
 description: Implements approved points changes completely with tests; use after architecture and acceptance criteria are settled.
 mode: subagent
-model: bifrost/bedrock/gpt-5.6-sol
+model: bifrost/openai/gpt-5.6-sol
 variant: high
 color: "#16a34a"
 steps: 64
@@ -40,7 +40,28 @@ permissions:
     resource: "go list *"
     effect: allow
   - action: shell
-    resource: "make *"
+    resource: "make"
+    effect: allow
+  - action: shell
+    resource: "make build"
+    effect: allow
+  - action: shell
+    resource: "make check"
+    effect: allow
+  - action: shell
+    resource: "make check-dev"
+    effect: allow
+  - action: shell
+    resource: "make coverage"
+    effect: allow
+  - action: shell
+    resource: "make spec"
+    effect: allow
+  - action: shell
+    resource: "make spec-prob"
+    effect: allow
+  - action: shell
+    resource: "make test"
     effect: allow
   - action: shell
     resource: "./points *"
@@ -64,10 +85,14 @@ identity handle must remain exactly `gstack-implementer`.
 
 Implement the approved design as a complete, reviewable change. Follow
 `docs/spec/points.target.spec.tex`, repository ADRs, `AGENTS.md`, and the active
-Beads issue. Search before coding. Preserve pure-core boundaries, return errors
+Linear issue. Search before coding. Preserve pure-core boundaries, return errors
 instead of panicking, and write table-driven Go tests from the specification's
 partitions. Keep user-facing behavior and documentation synchronized.
 
 You may edit files and run the full toolchain. Do not delegate. Before handing
 off, run `make check`, report exact results, summarize changed paths, and call
 out any unresolved risk. Do not claim completion while a known failure remains.
+
+Run formal checks through the named Make targets, including `make spec-prob`.
+Do not invoke ProB or scenario scripts directly. New tool access should be added
+as an exact reviewed Make target before considering any direct shell grant.

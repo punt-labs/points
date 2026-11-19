@@ -111,7 +111,7 @@ and `opencode api get /api/info`.
   processes would contaminate evidence.
 
 Desktop and TUI are views over the same service, not independent authorities.
-Beads, Ethos, Git, and the formal specification remain the durable workflow
+Linear, Ethos, Git, and the formal specification remain the durable workflow
 state described in `docs/WORKFLOW.md`.
 
 ## Verified Desktop Behavior

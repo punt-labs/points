@@ -87,7 +87,14 @@ scaffold. The central decisions are:
 [OpenCode config](docs/opencode/07-config-precedence.md) |
 [OpenCode plugins](docs/opencode/08-plugins-hooks.md) |
 [OpenCode tools](docs/opencode/09-tools.md) |
+[OpenCode sessions](docs/opencode/10-sessions-persistence.md) |
+[OpenCode concurrency](docs/opencode/11-background-concurrency.md) |
 [OpenCode clients](docs/opencode/12-server-clients.md) |
+[OpenCode worktrees](docs/opencode/13-worktrees-references.md) |
+[OpenCode compaction](docs/opencode/15-compaction-context.md) |
+[OpenCode tool output](docs/opencode/16-tool-output-attachments.md) |
+[OpenCode CLI](docs/opencode/17-cli-automation.md) |
+[OpenCode maintenance](docs/opencode/18-updates-maintenance.md) |
 [Development setup](docs/SETUP.md) |
 [Public release readiness](docs/PUBLIC-RELEASE.md) |
 [Contributing](CONTRIBUTING.md) |
