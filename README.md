@@ -20,7 +20,7 @@ verified specification, not functionality available in the current binary.
 
 ## Current Quick Start
 
-Go 1.26 or newer is required while the project is in source-only development.
+Go 1.26.11 or newer is required while the project is in source-only development.
 
 ```bash
 make build
