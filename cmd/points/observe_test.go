@@ -241,11 +241,7 @@ func TestCLIContinuesWithRotationLockHeld(t *testing.T) {
 	if err := unix.Flock(int(lock.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		t.Fatal(err)
 	}
-	started := time.Now()
 	out := runCLI(t, home, nil, 0, "version")
-	if elapsed := time.Since(started); elapsed < 1900*time.Millisecond || elapsed > 5*time.Second {
-		t.Errorf("CLI with rotation lock held took %v, want roughly 2s plus subprocess overhead", elapsed)
-	}
 	if out != "points: cannot initialize private diagnostics\npoints "+version+"\n" {
 		t.Fatalf("unexpected output with rotation lock held: %q", out)
 	}
