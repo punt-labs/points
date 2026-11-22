@@ -9,6 +9,8 @@ import (
 // docs/TESTPLAN.md); these only pin the CLI contract so the scaffold builds
 // and the exit-code convention is locked in.
 func TestRunExitCodes(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POINTS_TELEMETRY", "off")
 	cases := []struct {
 		name string
 		args []string

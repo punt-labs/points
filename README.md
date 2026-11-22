@@ -34,6 +34,18 @@ The current binary reports unimplemented routing commands with exit status 2.
 Binary releases and an installer will be added when the functional CLI is
 ready.
 
+### Diagnostics and usage telemetry
+
+Diagnostics are written to `~/.punt-labs/points/logs/points.log`, with up to
+five rotated backups. Usage telemetry is stored separately on this machine at
+`~/.punt-labs/points/telemetry.db` for 90 days; points does not send it over
+the network. It records the command category, outcome, and duration, not raw
+arguments or user data.
+
+Set `POINTS_TELEMETRY=off` to disable capture for points,
+`PUNT_TELEMETRY=off` to disable it globally, or run
+`points --no-telemetry <command>` to disable it for one invocation.
+
 ## Target Experience
 
 The operator selects one source and default model per harness. `points` owns the
