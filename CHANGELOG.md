@@ -20,6 +20,8 @@ All notable changes to `points` are documented here. The format follows
 
 ### Added
 
+- Private rotating CLI diagnostics and opt-out local usage telemetry via
+  `punt-observe-go`.
 - Repository scaffold: Go module + CLI skeleton (`cmd/points`) with the
   `route`/`status`/`verify`/`list`/`unroute` command surface stubbed.
 - Formal design: the verified Z specification set under `docs/spec/`

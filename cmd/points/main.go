@@ -15,12 +15,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 )
 
 const usage = `points — route your AI coding harnesses (config tool, not a proxy)
 
 Usage:
-  points <command> [flags]
+  points [--no-telemetry] <command> [flags]
 
 Commands:
   route     Point a harness (or set of harnesses) at a source + default model
@@ -31,6 +32,7 @@ Commands:
   version   Print the points version
 
 Run "points <command> --help" for details.
+Use --no-telemetry before the command to disable usage capture for this run.
 
 points is spec-first: docs/spec/points.target.spec.tex is the source of truth.
 `
@@ -42,26 +44,55 @@ func main() {
 }
 
 func run(args []string) int {
-	if len(args) == 0 {
-		return write(os.Stdout, usage)
+	started := time.Now()
+	disabled := len(args) > 0 && args[0] == "--no-telemetry"
+	if disabled {
+		args = args[1:]
 	}
-	switch args[0] {
+	observations := observe(disabled)
+	defer observations.close()
+
+	command := classify(args)
+	output, outcome, code := dispatch(command, args)
+	stream := os.Stdout
+	if code != 0 {
+		stream = os.Stderr
+	}
+	if _, err := fmt.Fprint(stream, output); err != nil {
+		outcome = outputError
+		if code == 0 {
+			code = 1
+		}
+	}
+	observations.complete(command, outcome, started)
+	return code
+}
+
+func classify(args []string) cliCommand {
+	if len(args) == 0 {
+		return commandHelp
+	}
+	switch command := cliCommand(args[0]); command {
 	case "-h", "--help", "help":
-		return write(os.Stdout, usage)
+		return commandHelp
 	case "version", "--version":
-		return write(os.Stdout, "points "+version+"\n")
-	case "route", "status", "verify", "list", "unroute":
-		_ = write(os.Stderr, fmt.Sprintf("points %s: not implemented yet (scaffold)\n", args[0]))
-		return 2
+		return commandVersion
+	case commandRoute, commandStatus, commandVerify, commandList, commandUnroute:
+		return command
 	default:
-		_ = write(os.Stderr, fmt.Sprintf("points: unknown command %q\n\n%s", args[0], usage))
-		return 2
+		return commandUnknown
 	}
 }
 
-func write(f *os.File, text string) int {
-	if _, err := fmt.Fprint(f, text); err != nil {
-		return 1
+func dispatch(command cliCommand, args []string) (string, cliOutcome, int) {
+	switch command {
+	case commandHelp:
+		return usage, success, 0
+	case commandVersion:
+		return "points " + version + "\n", success, 0
+	case commandUnknown:
+		return fmt.Sprintf("points: unknown command %q\n\n%s", args[0], usage), invalidCommand, 2
+	default:
+		return fmt.Sprintf("points %s: not implemented yet (scaffold)\n", command), notImplemented, 2
 	}
-	return 0
 }
