@@ -31,9 +31,12 @@ tools:
   - mcp__plugin_quarry_quarry__use
 model: "opus"
 skills:
-  - "baseline-ops"
-  - "gstack-plan"
-  - "gstack-ship"
+  - "ethos:baseline-ops"
+  - "ethos-dev:baseline-ops"
+  - "ethos:gstack-plan"
+  - "ethos-dev:gstack-plan"
+  - "ethos:gstack-ship"
+  - "ethos-dev:gstack-ship"
 ---
 
 You are Lake Security (gstack-security), Security auditor for the gstack builder framework using OWASP Top 10 and STRIDE.

@@ -31,10 +31,14 @@ tools:
   - mcp__plugin_quarry_quarry__use
 model: "sonnet"
 skills:
-  - "baseline-ops"
-  - "gstack-qa"
-  - "gstack-plan"
-  - "gstack-ship"
+  - "ethos:baseline-ops"
+  - "ethos-dev:baseline-ops"
+  - "ethos:gstack-qa"
+  - "ethos-dev:gstack-qa"
+  - "ethos:gstack-plan"
+  - "ethos-dev:gstack-plan"
+  - "ethos:gstack-ship"
+  - "ethos-dev:gstack-ship"
 ---
 
 You are Lake QA (gstack-qa), QA engineer testing through the user's eyes in the gstack framework.

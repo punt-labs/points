@@ -1,0 +1,48 @@
+name: go-default
+description: Advisory edit formatting, blocking commit analysis, and the full gate at handoff.
+checks:
+  - name: gofmt
+    stage: edit
+    files: ["**/*.go"]
+    run: [gofmt, -l, "{file}"]
+    fail_on_output: true
+    on_fail: advisory
+    timeout: 5s
+  - name: vet-edit
+    stage: edit
+    files: ["**/*.go"]
+    run: [go, vet, "{package_dir}"]
+    on_fail: advisory
+    timeout: 20s
+  - name: shellcheck
+    stage: edit
+    files: ["**/*.sh"]
+    run: [shellcheck, "{file}"]
+    on_fail: advisory
+    timeout: 5s
+  - name: gofmt-staged
+    stage: commit
+    files: ["**/*.go"]
+    run: [gofmt, -l, "{files}"]
+    fail_on_output: true
+    on_fail: block
+  - name: vet-staged
+    stage: commit
+    files: ["**/*.go"]
+    adapter: go
+    go: vet
+    cwd: root
+    on_fail: block
+  - name: vet-module
+    stage: commit
+    files: [go.mod, go.sum, go.work]
+    run: [go, vet, ./...]
+    cwd: root
+    on_fail: block
+  - name: full-gate
+    stage: handoff
+    files: all
+    adapter: make
+    target: check
+    on_fail: block
+    timeout: 20m
