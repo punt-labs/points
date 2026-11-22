@@ -10,6 +10,11 @@ All notable changes to `points` are documented here. The format follows
 - Linear is the tracker of record (Punt Labs team, label `repo:points`); the
   routing-config-tool epic is a Linear project.
 
+### Fixed
+
+- Commands continue without diagnostics for that run if the log rotation lock
+  cannot be acquired within two seconds.
+
 ### Removed
 
 - The local issue-database mirror: its config directory, `.envrc` connection block,

@@ -32,4 +32,5 @@ go_test(
         "observe_test.go",
     ],
     embed = [":points_lib"],
+    deps = ["@org_golang_x_sys//unix"],
 )

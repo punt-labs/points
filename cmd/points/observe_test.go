@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"io/fs"
 	"os"
@@ -8,6 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 func TestCLIProcess(t *testing.T) {
@@ -24,7 +28,9 @@ func newCLI(t *testing.T, home string, env []string, args ...string) *exec.Cmd {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.CommandContext(t.Context(), binary, append([]string{"-test.run=^TestCLIProcess$", "--"}, args...)...)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	t.Cleanup(cancel)
+	cmd := exec.CommandContext(ctx, binary, append([]string{"-test.run=^TestCLIProcess$", "--"}, args...)...)
 	cmd.Dir = t.TempDir()
 	cmd.Env = append(cmd.Environ(), "HOME="+home, "PUNT_TELEMETRY=", "POINTS_TELEMETRY=", "POINTS_TEST_CLI=1")
 	cmd.Env = append(cmd.Env, env...)
@@ -213,4 +219,51 @@ func TestCLIReportsLoggingStartupFailure(t *testing.T) {
 	if out != "points: cannot initialize private diagnostics\npoints "+version+"\n" {
 		t.Fatalf("unexpected output when diagnostics cannot start: %q", out)
 	}
+}
+
+func TestCLIContinuesWithRotationLockHeld(t *testing.T) {
+	home := t.TempDir()
+	root := filepath.Join(home, ".punt-labs", "points")
+	logs := filepath.Join(root, "logs")
+	if err := os.MkdirAll(logs, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(logs, "points.log")
+	lock, err := os.OpenFile(logPath+".rotate.lock", os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := lock.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	if err := unix.Flock(int(lock.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+		t.Fatal(err)
+	}
+	started := time.Now()
+	out := runCLI(t, home, nil, 0, "version")
+	if elapsed := time.Since(started); elapsed < 1900*time.Millisecond || elapsed > 5*time.Second {
+		t.Errorf("CLI with rotation lock held took %v, want roughly 2s plus subprocess overhead", elapsed)
+	}
+	if out != "points: cannot initialize private diagnostics\npoints "+version+"\n" {
+		t.Fatalf("unexpected output with rotation lock held: %q", out)
+	}
+	if _, err := os.Stat(logPath); !os.IsNotExist(err) {
+		t.Fatalf("active log should not exist with rotation lock held, stat error: %v", err)
+	}
+	if err := unix.Flock(int(lock.Fd()), unix.LOCK_UN); err != nil {
+		t.Fatal(err)
+	}
+	if out := runCLI(t, home, nil, 0, "version"); out != "points "+version+"\n" {
+		t.Fatalf("unexpected output after releasing rotation lock: %q", out)
+	}
+	log, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkOutcomeLogs(t, log, "[INFO] points.cli: Command succeeded command=version outcome=success")
+	checkSpans(t, filepath.Join(root, "telemetry.db"),
+		`{"command":"version","outcome":"success"}`,
+		`{"command":"version","outcome":"success"}`)
 }
