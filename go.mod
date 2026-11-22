@@ -2,7 +2,10 @@ module github.com/punt-labs/points
 
 go 1.26.11
 
-require github.com/punt-labs/punt-observe-go v0.0.0-20261122183941-8b005646fab7
+require (
+	github.com/punt-labs/punt-observe-go v0.0.0-20261122192811-90067f488a2a
+	golang.org/x/sys v0.48.0
+)
 
 require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
@@ -27,7 +30,6 @@ require (
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
 	golang.org/x/net v0.60.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
