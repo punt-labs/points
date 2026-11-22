@@ -4,7 +4,7 @@ go 1.26.11
 
 require (
 	github.com/punt-labs/punt-observe-go v0.0.0-20261122192811-90067f488a2a
-	golang.org/x/sys v0.48.0
+	golang.org/x/sys v0.50.0
 )
 
 require (
