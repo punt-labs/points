@@ -59,7 +59,6 @@ func run(args []string) int {
 		stream = os.Stderr
 	}
 	if _, err := fmt.Fprint(stream, output); err != nil {
-		observations.outputFailed(command)
 		outcome = outputError
 		if code == 0 {
 			code = 1

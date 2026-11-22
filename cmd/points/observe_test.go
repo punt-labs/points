@@ -50,6 +50,9 @@ func TestCLIObservability(t *testing.T) {
 	if out := runCLI(t, home, nil, 2, "route", home, canary); !strings.Contains(out, "not implemented yet") {
 		t.Fatalf("missing command error: %q", out)
 	}
+	if out := runCLI(t, home, nil, 2, "status"); !strings.Contains(out, "not implemented yet") {
+		t.Fatalf("missing command error: %q", out)
+	}
 	if out := runCLI(t, home, nil, 2, canary); !strings.Contains(out, "unknown command") {
 		t.Fatalf("missing usage error: %q", out)
 	}
@@ -67,11 +70,11 @@ func TestCLIObservability(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"[INFO]", "[WARNING]", "points.cli", "version", "success", "route", "not_implemented", "invalid_command"} {
-		if !strings.Contains(string(log), want) {
-			t.Errorf("log missing %q:\n%s", want, log)
-		}
-	}
+	checkOutcomeLogs(t, log,
+		"[INFO] points.cli: Command succeeded command=version outcome=success",
+		"[WARNING] points.cli: Command failed command=route outcome=not_implemented",
+		"[WARNING] points.cli: Command failed command=status outcome=not_implemented",
+		"[WARNING] points.cli: Command failed command=unknown outcome=invalid_command")
 	for _, forbidden := range []string{canary, home} {
 		if strings.Contains(string(log), forbidden) {
 			t.Errorf("log contains private data: %q", forbidden)
@@ -80,7 +83,21 @@ func TestCLIObservability(t *testing.T) {
 	checkSpans(t, dbPath,
 		`{"command":"version","outcome":"success"}`,
 		`{"command":"route","outcome":"not_implemented"}`,
+		`{"command":"status","outcome":"not_implemented"}`,
 		`{"command":"unknown","outcome":"invalid_command"}`)
+}
+
+func checkOutcomeLogs(t *testing.T, log []byte, want ...string) {
+	t.Helper()
+	lines := strings.Split(strings.TrimSuffix(string(log), "\n"), "\n")
+	if len(lines) != len(want) {
+		t.Fatalf("want exactly %d log records, got %d:\n%s", len(want), len(lines), log)
+	}
+	for i, record := range want {
+		if !strings.HasSuffix(lines[i], " "+record) {
+			t.Errorf("unexpected log record %q, want suffix %q", lines[i], record)
+		}
+	}
 }
 
 func checkMode(t *testing.T, path string, want fs.FileMode) {
@@ -157,10 +174,7 @@ func TestCLIReportsErrorOutputFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(log), "[ERROR] points.cli: Could not write command output command=route") ||
-		!strings.Contains(string(log), "command=route outcome=output_error") {
-		t.Fatalf("missing output failure diagnostics:\n%s", log)
-	}
+	checkOutcomeLogs(t, log, "[ERROR] points.cli: Command failed to write output command=route outcome=output_error")
 	checkSpans(t, filepath.Join(root, "telemetry.db"), `{"command":"route","outcome":"output_error"}`)
 }
 

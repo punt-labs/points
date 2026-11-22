@@ -78,19 +78,17 @@ func observe(disabled bool) observability {
 	}
 }
 
-func (o observability) outputFailed(command cliCommand) {
-	if o.log != nil {
-		o.log.Error("Could not write command output", "command", string(command))
-	}
-}
-
 func (o observability) complete(command cliCommand, outcome cliOutcome, started time.Time) {
 	elapsed := time.Since(started)
 	if o.log != nil {
-		if command == commandUnknown {
-			o.log.Warn("Rejected an unrecognized command")
+		level, message := slog.LevelWarn, "Command failed"
+		switch outcome {
+		case success:
+			level, message = slog.LevelInfo, "Command succeeded"
+		case outputError:
+			level, message = slog.LevelError, "Command failed to write output"
 		}
-		o.log.Info("Processed command", "command", string(command), "outcome", string(outcome))
+		o.log.Log(context.Background(), level, message, "command", string(command), "outcome", string(outcome))
 	}
 	o.telemetry.Record(telemetry.Observation{
 		Name: operation, Version: invocationSchema.Version, Started: started, Duration: elapsed,
