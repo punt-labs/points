@@ -21,7 +21,11 @@ Install these commands before continuing:
 - `ethos`, `quarry`, `lux`, `biff`, `vox`, and `beadle-email`
 - Node.js 22 or newer and `npx` for the Brave Search MCP
 - `gh` and `qodo`
-- `make`, `markdownlint-cli2`, and optionally `staticcheck`
+- `make`, `markdownlint-cli2`, `shellcheck`, and optionally `staticcheck`
+
+Install ShellCheck with `brew install shellcheck` on macOS or
+`sudo apt-get install shellcheck` on Ubuntu. The advisory shell edit check uses
+this executable; `make tools` installs Go tools, not ShellCheck.
 
 Verify the important versions and authentication:
 
@@ -74,6 +78,21 @@ retry after connectivity is restored.
 
 ## 3. Ethos and the gstack team
 
+The check sets require Ethos v5.2.0 or newer. Install the released binary
+with the versioned installer, then put its installation directory first on PATH:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/punt-labs/ethos/v5.2.0/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+ethos version
+ethos seed
+```
+
+Keep that PATH in every contributor shell, including shells that commit or
+launch the harness, so the hooks use the same binary. `ethos seed` supplies
+the global `gstack` bundle referenced by this checkout. Reconnect running
+Ethos MCP servers after changing the binary.
+
 Enable Ethos to install or refresh its per-clone Git hooks:
 
 ```sh
@@ -89,6 +108,7 @@ selection in `.punt-labs/ethos.yaml`:
 agent: claude
 team: gstack
 active_bundle: gstack
+checks: go-default
 ```
 
 If that selection is missing, run the interactive setup from a terminal:

@@ -31,10 +31,14 @@ tools:
   - mcp__plugin_quarry_quarry__use
 model: "opus"
 skills:
-  - "baseline-ops"
-  - "gstack-plan"
-  - "gstack-design"
-  - "gstack-ship"
+  - "ethos:baseline-ops"
+  - "ethos-dev:baseline-ops"
+  - "ethos:gstack-plan"
+  - "ethos-dev:gstack-plan"
+  - "ethos:gstack-design"
+  - "ethos-dev:gstack-design"
+  - "ethos:gstack-ship"
+  - "ethos-dev:gstack-ship"
 ---
 
 You are Lake Architect (gstack-architect), Design-first thinker for the gstack builder framework.

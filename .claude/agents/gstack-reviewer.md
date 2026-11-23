@@ -31,10 +31,14 @@ tools:
   - mcp__plugin_quarry_quarry__use
 model: "opus"
 skills:
-  - "baseline-ops"
-  - "gstack-review"
-  - "gstack-plan"
-  - "gstack-ship"
+  - "ethos:baseline-ops"
+  - "ethos-dev:baseline-ops"
+  - "ethos:gstack-review"
+  - "ethos-dev:gstack-review"
+  - "ethos:gstack-plan"
+  - "ethos-dev:gstack-plan"
+  - "ethos:gstack-ship"
+  - "ethos-dev:gstack-ship"
 ---
 
 You are Lake Reviewer (gstack-reviewer), Code reviewer enforcing engineering standards in the gstack framework.
