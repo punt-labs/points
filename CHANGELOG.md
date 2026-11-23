@@ -10,6 +10,11 @@ All notable changes to `points` are documented here. The format follows
 - Linear is the tracker of record (Punt Labs team, label `repo:points`); the
   routing-config-tool epic is a Linear project.
 
+### Fixed
+
+- Commands continue without diagnostics for that run if the log rotation lock
+  cannot be acquired within two seconds.
+
 ### Removed
 
 - The local issue-database mirror: its config directory, `.envrc` connection block,
@@ -20,6 +25,8 @@ All notable changes to `points` are documented here. The format follows
 
 ### Added
 
+- Private rotating CLI diagnostics and opt-out local usage telemetry via
+  `punt-observe-go`.
 - Repository scaffold: Go module + CLI skeleton (`cmd/points`) with the
   `route`/`status`/`verify`/`list`/`unroute` command surface stubbed.
 - Formal design: the verified Z specification set under `docs/spec/`

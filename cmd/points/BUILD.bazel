@@ -7,9 +7,16 @@ load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 
 go_library(
     name = "points_lib",
-    srcs = ["main.go"],
+    srcs = [
+        "main.go",
+        "observe.go",
+    ],
     importpath = "github.com/punt-labs/points/cmd/points",
     visibility = ["//visibility:private"],
+    deps = [
+        "@com_github_punt_labs_punt_observe_go//logging",
+        "@com_github_punt_labs_punt_observe_go//telemetry",
+    ],
 )
 
 go_binary(
@@ -20,6 +27,10 @@ go_binary(
 
 go_test(
     name = "points_test",
-    srcs = ["main_test.go"],
+    srcs = [
+        "main_test.go",
+        "observe_test.go",
+    ],
     embed = [":points_lib"],
+    deps = ["@org_golang_x_sys//unix"],
 )
