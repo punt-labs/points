@@ -5,6 +5,12 @@ All notable changes to `points` are documented here. The format follows
 
 ## [Unreleased]
 
+### Security
+
+- Clear 3 open Dependabot alerts (1 high): `google.golang.org/grpc`
+  1.83.1 → 1.83.2 (GHSA-2v4p-qf9q-27wj) and the `go.opentelemetry.io/otel`
+  modules 1.45.0 → 1.47.0 (GHSA-q7gw-24fr-5p69).
+
 ### Changed
 
 - Linear is the tracker of record (Punt Labs team, label `repo:points`); the
