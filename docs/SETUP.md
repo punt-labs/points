@@ -78,17 +78,12 @@ retry after connectivity is restored.
 
 ## 3. Ethos and the gstack team
 
-The check sets require unreleased Ethos main commit
-`f4f884fb07e6a0c7381bc9c3cd05a84191a597e1` (DES-085, PRs #643–647),
-or a newer compatible build. Release v5.1.1 does not support them. Clone
-`https://github.com/punt-labs/ethos.git` into `../ethos` if needed, then build
-the required revision and put it first on PATH:
+The check sets require Ethos v5.2.0 or newer. Install the released binary
+with the versioned installer, then put its installation directory first on PATH:
 
 ```sh
-git -C ../ethos fetch origin main
-git -C ../ethos checkout f4f884fb07e6a0c7381bc9c3cd05a84191a597e1
-make -C ../ethos build
-export PATH="$(cd ../ethos && pwd):$PATH"
+curl -fsSL https://raw.githubusercontent.com/punt-labs/ethos/v5.2.0/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
 ethos version
 ethos seed
 ```
