@@ -24,8 +24,14 @@ the first public release.
 
 ## Release Pipeline
 
-The repository does not yet ship an installer or release workflow because the
-routing commands remain a scaffold. Before the first binary release:
+The [Handoff runtime workflow](../.github/workflows/handoff-runtime.yml) builds
+and tests the Linux amd64 Ethos snapshot runtime on pull requests. Manually
+dispatch it on `main` to publish the verified archive and its SHA-256 checksum
+as the non-latest `handoff-runtime-v1` prerelease. That bundle supplies the
+handoff gate's tools and dependencies; it is not a Points CLI release.
+
+The Points CLI does not yet ship an installer or use a binary release workflow
+because the routing commands remain a scaffold. Before the first CLI release:
 
 - Add a tag-triggered release workflow with GitHub-hosted builds.
 - Attach the four artifacts produced by `make dist`.
