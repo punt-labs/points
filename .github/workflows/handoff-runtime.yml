@@ -1,0 +1,77 @@
+name: Handoff runtime
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Validate runtime release request
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo 'Dispatch this workflow on main to publish the runtime.' >&2
+            exit 2
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.23.5'
+      - name: Build Linux amd64 runtime
+        run: bash scripts/build-handoff-runtime.sh "$RUNNER_TEMP/runtime-assets"
+      - name: Run the full gate offline with the relocated runtime
+        run: |
+          sudo unshare --net --setuid "$(id -u)" --setgid "$(id -g)" -- \
+            /usr/bin/bash scripts/smoke-handoff-runtime.sh "$RUNNER_TEMP/runtime-assets"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: runtime-linux-amd64
+          path: ${{ runner.temp }}/runtime-assets/
+          compression-level: 0
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: build
+    concurrency: handoff-runtime-v1-release
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: runtime-linux-amd64
+          path: runtime-assets
+      - name: Verify and publish the runtime prerelease
+        working-directory: runtime-assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=handoff-runtime-v1
+          asset=points-handoff-linux-amd64-v1.tar.gz
+          sha256sum --check "$asset.sha256"
+          existing_tag=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$tag" \
+            --jq ".[] | select(.ref == \"refs/tags/$tag\") | .ref")
+          if [[ -n "$existing_tag" ]]; then
+            echo "Refusing to reuse $existing_tag" >&2
+            exit 1
+          fi
+          gh release create "$tag" "$asset" "$asset.sha256" --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --draft --prerelease --latest=false \
+            --title "Points handoff runtime $tag" \
+            --notes 'Linux amd64 runtime for the Points Ethos handoff gate. See licenses/sources.txt in the archive for upstream sources.'
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
