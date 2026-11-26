@@ -155,13 +155,19 @@ go -C /path/to/ethos build -o "$runner" ./cmd/ethos
 "$runner" handoff fetch-runtime
 ```
 
-Use `"$runner" hook subagent-stop` with the hook's normal input, not `ethos`
-from `PATH`. Fetch verifies the sidecar's SHA-256 and installs the archive
-in the local runtime store; the gate never downloads it.
+Fetch verifies the sidecar's SHA-256 and installs the archive in the local
+runtime store; the gate never downloads it.
 
-Released Ethos v5.2.x ignores the sidecar and runs the gate live. To provision
-the snapshot-capable runner manually, download the pinned archive from the
-`handoff-runtime-v1` prerelease and run these commands from that directory:
+The installed Claude Code hook uses `ethos` from `PATH`. To enable snapshots
+for real handoffs, replace the released binary with
+`install -m 0755 "$runner" "$HOME/.local/bin/ethos"` and restart Claude Code
+with `$HOME/.local/bin` first on `PATH`. For manual replay, invoke
+`"$runner" hook subagent-stop` with the hook's normal input.
+Until a release ships DES-086, the released binary (including v5.2.x)
+ignores the sidecar and runs the gate live.
+
+To provision the snapshot-capable runner manually, download the pinned archive
+from the `handoff-runtime-v1` prerelease and run these commands from that directory:
 
 ```sh
 archive=points-handoff-linux-amd64-v1.tar.gz
