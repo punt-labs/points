@@ -141,6 +141,24 @@ Run the live workstation check after service or credential changes:
 make doctor
 ```
 
+### Handoff snapshot runtime
+
+The Linux amd64 snapshot needs both a snapshot-capable Ethos runner and the
+pinned `points-handoff-linux-amd64-v1.tar.gz` archive. The archive is not yet
+published; the download URL will be added when the Points release workflow
+publishes it. Once you have the archive, run these commands in its directory
+to verify its SHA-256 and install it under the digest-based filename Ethos
+expects:
+
+```sh
+archive=points-handoff-linux-amd64-v1.tar.gz
+digest=8d2aa95f04f89407b81f9fff7a64b8f07353af0646e709f73c16d4a54a3debdb
+store="$HOME/.punt-labs/ethos/runtimes"
+printf '%s  %s\n' "$digest" "$archive" | shasum -a 256 -c - &&
+  mkdir -p "$store" &&
+  install -m 0644 "$archive" "$store/$digest.tar.gz"
+```
+
 ## 4. Enable repository tools
 
 These commands create or refresh reviewed repository markers and local runtime
