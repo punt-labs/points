@@ -158,7 +158,9 @@ go -C /path/to/ethos build -o "$runner" ./cmd/ethos
 Fetch verifies the sidecar's SHA-256 and installs the archive in the local
 runtime store; the gate never downloads it.
 
-The installed Claude Code hook uses `ethos` from `PATH`. To enable snapshots
+If Claude Code was installed after Ethos, rerun the installer in step 3 before
+replacing the binary. Check that `claude plugin list` shows `ethos@punt-labs` enabled.
+The plugin's `SubagentStop` hook uses `ethos` from `PATH`. To enable snapshots
 for real handoffs, replace the released binary with
 `install -m 0755 "$runner" "$HOME/.local/bin/ethos"` and restart Claude Code
 with `$HOME/.local/bin` first on `PATH`. For manual replay, invoke
