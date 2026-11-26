@@ -141,6 +141,48 @@ Run the live workstation check after service or credential changes:
 make doctor
 ```
 
+### Handoff snapshot runtime
+
+The Linux amd64 snapshot needs both a snapshot-capable Ethos runner and the
+pinned [`points-handoff-linux-amd64-v1.tar.gz` archive][handoff-runtime-v1].
+Until an Ethos release ships the DES-086 runner, build Ethos from `main` at
+[`038e901`][ethos-snapshot-runner] or later to a separate path. From the
+Points checkout, build from your Ethos source checkout and fetch the archive:
+
+```sh
+runner="$HOME/.local/bin/ethos-des-086"
+go -C /path/to/ethos build -o "$runner" ./cmd/ethos
+"$runner" handoff fetch-runtime
+```
+
+Fetch verifies the sidecar's SHA-256 and installs the archive in the local
+runtime store; the gate never downloads it.
+
+If Claude Code was installed after Ethos, rerun the installer in step 3 before
+replacing the binary. Check that `claude plugin list` shows `ethos@punt-labs` enabled.
+The plugin's `SubagentStop` hook uses `ethos` from `PATH`. To enable snapshots
+for real handoffs, replace the released binary with
+`install -m 0755 "$runner" "$HOME/.local/bin/ethos"` and restart Claude Code
+with `$HOME/.local/bin` first on `PATH`. For manual replay, invoke
+`"$runner" hook subagent-stop` with the hook's normal input.
+Until a release ships DES-086, the released binary (including v5.2.x)
+ignores the sidecar and runs the gate live.
+
+To provision the snapshot-capable runner manually, download the pinned archive
+from the `handoff-runtime-v1` prerelease and run these commands from that directory:
+
+```sh
+archive=points-handoff-linux-amd64-v1.tar.gz
+digest=174ba04c1be1731d35fa6b7fb3b4c8b75b297983b439cdb185f30c11960ec06b
+store="$HOME/.punt-labs/ethos/runtimes"
+printf '%s  %s\n' "$digest" "$archive" | sha256sum -c - &&
+  mkdir -p "$store" &&
+  install -m 0644 "$archive" "$store/$digest.tar.gz"
+```
+
+[handoff-runtime-v1]: https://github.com/punt-labs/points/releases/download/handoff-runtime-v1/points-handoff-linux-amd64-v1.tar.gz
+[ethos-snapshot-runner]: https://github.com/punt-labs/ethos/commit/038e901628e9772add514350b24c8d8f6fb6d0f6
+
 ## 4. Enable repository tools
 
 These commands create or refresh reviewed repository markers and local runtime

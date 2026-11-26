@@ -1,0 +1,36 @@
+# DES-086 worktree sidecar; requires the new Ethos runner.
+# ../go-default.yaml still owns make check, blocking behavior, and the timeout.
+# Ethos v5.2.3 intentionally ignores this sidecar and runs the same gate live.
+checks:
+  full-gate:
+    profile: linux-worktree-v1
+    epoch: points-linux-amd64-v1
+    sources: {mode: worktree}
+    system:
+      # The worktree runner is expected to key these host binaries separately
+      # from the archive. CGO uses the host's system headers and libraries.
+      tools: [make, git, sh, bash, sed, cut, grep, gcc, as, ld]
+    runtime:
+      platforms:
+        linux-amd64:
+          # Run ethos handoff fetch-runtime before handoff; the gate never downloads.
+          # A Darwin pin needs a native runtime and separate parity proof.
+          bundle: points-handoff-linux-amd64-v1.tar.gz
+          url: https://github.com/punt-labs/points/releases/download/handoff-runtime-v1/points-handoff-linux-amd64-v1.tar.gz
+          sha256: "174ba04c1be1731d35fa6b7fb3b4c8b75b297983b439cdb185f30c11960ec06b"
+          # Node 22 and markdownlint-cli2 come from {runtime}/bin, not system.tools.
+          # make markdownlint finds the bundled CLI before its online npx fallback.
+          path: ["{runtime}/go/bin", "{runtime}/bin"]
+          env:
+            CGO_ENABLED: "1"
+            GOENV: "off"
+            GOTOOLCHAIN: local
+            GOPROXY: "off"
+            GOBIN: "{runtime}/bin"
+            GOMODCACHE: "{scratch}/go-mod"
+            GOCACHE: "{scratch}/go-build"
+    scratch:
+      # The worktree runner must copy the module cache into writable scratch
+      # before make check at {root}. The separate Go build cache starts empty.
+      seed:
+        "{scratch}/go-mod": "{runtime}/cache/go-mod"
