@@ -154,7 +154,7 @@ expects:
 archive=points-handoff-linux-amd64-v1.tar.gz
 digest=8d2aa95f04f89407b81f9fff7a64b8f07353af0646e709f73c16d4a54a3debdb
 store="$HOME/.punt-labs/ethos/runtimes"
-printf '%s  %s\n' "$digest" "$archive" | shasum -a 256 -c - &&
+printf '%s  %s\n' "$digest" "$archive" | sha256sum -c - &&
   mkdir -p "$store" &&
   install -m 0644 "$archive" "$store/$digest.tar.gz"
 ```
