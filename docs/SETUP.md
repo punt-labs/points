@@ -146,21 +146,22 @@ make doctor
 The Linux amd64 snapshot needs both a snapshot-capable Ethos runner and the
 pinned [`points-handoff-linux-amd64-v1.tar.gz` archive][handoff-runtime-v1].
 Until an Ethos release ships the DES-086 runner, build Ethos from `main` at
-[`038e901`][ethos-snapshot-runner] or later. Run this command from the Points
-checkout before handoff:
+[`038e901`][ethos-snapshot-runner] or later to a separate path. From the
+Points checkout, build from your Ethos source checkout and fetch the archive:
 
 ```sh
-ethos handoff fetch-runtime
+runner="$HOME/.local/bin/ethos-des-086"
+go -C /path/to/ethos build -o "$runner" ./cmd/ethos
+"$runner" handoff fetch-runtime
 ```
 
-Ethos verifies the SHA-256 pinned in the sidecar and installs the archive in
-its local runtime store. The handoff gate never downloads it.
+Use `"$runner" hook subagent-stop` with the hook's normal input, not `ethos`
+from `PATH`. Fetch verifies the sidecar's SHA-256 and installs the archive
+in the local runtime store; the gate never downloads it.
 
-The pinned Ethos v5.2.0 (and other v5.2.x builds without the subcommand)
-requires manual provisioning: download the pinned archive from the
-`handoff-runtime-v1` prerelease and run these commands from the download
-directory. This installs the archive for a snapshot-capable runner; it does
-not add snapshot support to v5.2.x.
+Released Ethos v5.2.x ignores the sidecar and runs the gate live. To provision
+the snapshot-capable runner manually, download the pinned archive from the
+`handoff-runtime-v1` prerelease and run these commands from that directory:
 
 ```sh
 archive=points-handoff-linux-amd64-v1.tar.gz
