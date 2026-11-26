@@ -36,6 +36,8 @@ jobs:
         run: |
           sudo unshare --net --setuid "$(id -u)" --setgid "$(id -g)" -- \
             /usr/bin/bash scripts/smoke-handoff-runtime.sh "$RUNNER_TEMP/runtime-assets"
+      - name: Verify runtime release notes
+        run: bash scripts/handoff-runtime/render-release-notes.sh "$RUNNER_TEMP/runtime-assets/points-handoff-linux-amd64-v1.tar.gz"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runtime-linux-amd64
@@ -52,6 +54,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: runtime-linux-amd64
@@ -71,11 +76,7 @@ jobs:
             exit 1
           fi
           notes=$(mktemp)
-          printf '%s\n\n%s\n\n' \
-            'Linux amd64 runtime for the Points Ethos handoff gate.' \
-            'Corresponding sources for the bundled tools:' > "$notes"
-          tar -xOzf "$asset" licenses/sources.txt >> "$notes"
-          printf '\n%s\n' 'The archive also includes the Points Go module sources and the locked Markdownlint packages.' >> "$notes"
+          bash ../scripts/handoff-runtime/render-release-notes.sh "$asset" > "$notes"
           gh release create "$tag" "$asset" "$asset.sha256" --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" --draft --prerelease --latest=false \
             --title "Points handoff runtime $tag" \
