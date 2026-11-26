@@ -57,12 +57,22 @@ cp -R "$GOMODCACHE/github.com/golangci/golangci-lint/v2@$golangci_version/third_
     "$runtime/licenses/go-tools/github.com/golangci/golangci-lint/v2@$golangci_version/"
 test -s "$runtime/licenses/go-tools/github.com/golangci/golangci-lint/v2@$golangci_version/LICENSE"
 test -s "$runtime/licenses/go-tools/github.com/rhysd/actionlint@$actionlint_version/LICENSE.txt"
-printf '%s\n' \
-    "https://github.com/golang/go/tree/go$go_version" \
-    "https://github.com/nodejs/node/tree/$node_version" \
-    "https://github.com/koalaman/shellcheck/tree/$shellcheck_version" \
-    "https://github.com/golangci/golangci-lint/tree/$golangci_version" \
-    "https://github.com/rhysd/actionlint/tree/$actionlint_version" > "$runtime/licenses/sources.txt"
+{
+    printf -- '- Go %s: <%s>\n' "$go_version" "https://go.dev/dl/go$go_version.src.tar.gz"
+    printf -- '- Node.js %s: <%s>\n' "$node_version" "https://nodejs.org/dist/$node_version/node-$node_version.tar.gz"
+    printf -- '- ShellCheck %s: <%s>\n' "$shellcheck_version" \
+        "https://github.com/koalaman/shellcheck/archive/refs/tags/$shellcheck_version.tar.gz"
+    printf -- '- golangci-lint %s: <%s>\n' "$golangci_version" \
+        "https://github.com/golangci/golangci-lint/archive/refs/tags/$golangci_version.tar.gz"
+    printf -- '- actionlint %s: <%s>\n' "$actionlint_version" \
+        "https://github.com/rhysd/actionlint/archive/refs/tags/$actionlint_version.tar.gz"
+    printf '\n<details>\n<summary>Exact Go linter module sources</summary>\n\n'
+    while IFS=@ read -r module version; do
+        escaped=$(printf '%s' "$module" | LC_ALL=C sed -E 's/([A-Z])/!\L\1/g')
+        printf -- '- %s@%s: <https://proxy.golang.org/%s/@v/%s.zip>\n' "$module" "$version" "$escaped" "$version"
+    done < "$work/tool-modules.txt"
+    printf '\n</details>\n'
+} > "$runtime/licenses/sources.txt"
 GOMODCACHE="$runtime/cache/go-mod" go mod download
 find "$runtime/cache/go-mod/cache/download" -type f -name '*.lock' -delete
 

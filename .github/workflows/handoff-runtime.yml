@@ -70,8 +70,14 @@ jobs:
             echo "Refusing to reuse $existing_tag" >&2
             exit 1
           fi
+          notes=$(mktemp)
+          printf '%s\n\n%s\n\n' \
+            'Linux amd64 runtime for the Points Ethos handoff gate.' \
+            'Corresponding sources for the bundled tools:' > "$notes"
+          tar -xOzf "$asset" licenses/sources.txt >> "$notes"
+          printf '\n%s\n' 'The archive also includes the Points Go module sources and the locked Markdownlint packages.' >> "$notes"
           gh release create "$tag" "$asset" "$asset.sha256" --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" --draft --prerelease --latest=false \
             --title "Points handoff runtime $tag" \
-            --notes 'Linux amd64 runtime for the Points Ethos handoff gate. See licenses/sources.txt in the archive for upstream sources.'
+            --notes-file "$notes"
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
