@@ -144,20 +144,21 @@ make doctor
 ### Handoff snapshot runtime
 
 The Linux amd64 snapshot needs both a snapshot-capable Ethos runner and the
-pinned `points-handoff-linux-amd64-v1.tar.gz` archive. The archive is not yet
-published; the download URL will be added when the Points release workflow
-publishes it. Once you have the archive, run these commands in its directory
-to verify its SHA-256 and install it under the digest-based filename Ethos
-expects:
+pinned [`points-handoff-linux-amd64-v1.tar.gz` archive][handoff-runtime-v1].
+Download it from the `handoff-runtime-v1` prerelease and run these commands in
+its directory to verify its SHA-256 and install it under the digest-based
+filename Ethos expects:
 
 ```sh
 archive=points-handoff-linux-amd64-v1.tar.gz
-digest=8d2aa95f04f89407b81f9fff7a64b8f07353af0646e709f73c16d4a54a3debdb
+digest=174ba04c1be1731d35fa6b7fb3b4c8b75b297983b439cdb185f30c11960ec06b
 store="$HOME/.punt-labs/ethos/runtimes"
 printf '%s  %s\n' "$digest" "$archive" | sha256sum -c - &&
   mkdir -p "$store" &&
   install -m 0644 "$archive" "$store/$digest.tar.gz"
 ```
+
+[handoff-runtime-v1]: https://github.com/punt-labs/points/releases/download/handoff-runtime-v1/points-handoff-linux-amd64-v1.tar.gz
 
 ## 4. Enable repository tools
 
