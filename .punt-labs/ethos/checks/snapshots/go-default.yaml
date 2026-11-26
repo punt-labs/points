@@ -1,0 +1,33 @@
+# DES-086 worktree sidecar; requires the new Ethos runner.
+# ../go-default.yaml still owns make check, blocking behavior, and the timeout.
+# Ethos v5.2.3 intentionally ignores this sidecar and runs the same gate live.
+checks:
+  full-gate:
+    profile: linux-worktree-v1
+    epoch: points-linux-amd64-v1
+    sources: {mode: worktree}
+    system:
+      # The worktree runner is expected to key these host binaries separately
+      # from the archive. CGO uses the host's system headers and libraries.
+      tools: [make, git, sh, bash, sed, cut, grep, gcc, as, ld]
+    runtime:
+      platforms:
+        linux-amd64:
+          # Install the digest-named archive in ~/.punt-labs/ethos/runtimes/.
+          # A Darwin pin needs a native runtime and separate parity proof.
+          bundle: points-handoff-linux-amd64-v1.tar.gz
+          sha256: "8d2aa95f04f89407b81f9fff7a64b8f07353af0646e709f73c16d4a54a3debdb"
+          path: ["{runtime}/go/bin", "{runtime}/bin"]
+          env:
+            CGO_ENABLED: "1"
+            GOENV: "off"
+            GOTOOLCHAIN: local
+            GOPROXY: "off"
+            GOBIN: "{runtime}/bin"
+            GOMODCACHE: "{scratch}/go-mod"
+            GOCACHE: "{scratch}/go-build"
+    scratch:
+      # The worktree runner must copy the module cache into writable scratch
+      # before make check at {root}. The separate Go build cache starts empty.
+      seed:
+        "{scratch}/go-mod": "{runtime}/cache/go-mod"
