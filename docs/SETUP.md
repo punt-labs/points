@@ -145,9 +145,9 @@ make doctor
 
 The Linux amd64 snapshot needs both a snapshot-capable Ethos runner and the
 pinned [`points-handoff-linux-amd64-v1.tar.gz` archive][handoff-runtime-v1].
-Until an Ethos release ships `handoff fetch-runtime`, use a DES-086 runner
-built from `devin/1795655587-handoff-worktree-runner` at `c837cd1` or later
-to run this command from the Points checkout before handoff:
+Until an Ethos release ships the DES-086 runner, build Ethos from `main` at
+[`038e901`][ethos-snapshot-runner] or later. Run this command from the Points
+checkout before handoff:
 
 ```sh
 ethos handoff fetch-runtime
@@ -172,6 +172,7 @@ printf '%s  %s\n' "$digest" "$archive" | sha256sum -c - &&
 ```
 
 [handoff-runtime-v1]: https://github.com/punt-labs/points/releases/download/handoff-runtime-v1/points-handoff-linux-amd64-v1.tar.gz
+[ethos-snapshot-runner]: https://github.com/punt-labs/ethos/commit/038e901628e9772add514350b24c8d8f6fb6d0f6
 
 ## 4. Enable repository tools
 
