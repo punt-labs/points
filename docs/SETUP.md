@@ -145,9 +145,18 @@ make doctor
 
 The Linux amd64 snapshot needs both a snapshot-capable Ethos runner and the
 pinned [`points-handoff-linux-amd64-v1.tar.gz` archive][handoff-runtime-v1].
-Download it from the `handoff-runtime-v1` prerelease and run these commands in
-its directory to verify its SHA-256 and install it under the digest-based
-filename Ethos expects:
+From the Points checkout, fetch the archive before handoff:
+
+```sh
+ethos handoff fetch-runtime
+```
+
+Ethos verifies the SHA-256 pinned in the sidecar and installs the archive in
+its local runtime store. The handoff gate never downloads it.
+
+For manual installation, download the pinned archive from the
+`handoff-runtime-v1` prerelease and run these commands from the download
+directory:
 
 ```sh
 archive=points-handoff-linux-amd64-v1.tar.gz

@@ -13,7 +13,7 @@ checks:
     runtime:
       platforms:
         linux-amd64:
-          # Install the digest-named archive in ~/.punt-labs/ethos/runtimes/.
+          # Run ethos handoff fetch-runtime before handoff; the gate never downloads.
           # A Darwin pin needs a native runtime and separate parity proof.
           bundle: points-handoff-linux-amd64-v1.tar.gz
           url: https://github.com/punt-labs/points/releases/download/handoff-runtime-v1/points-handoff-linux-amd64-v1.tar.gz
