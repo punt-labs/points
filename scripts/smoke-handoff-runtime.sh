@@ -3,6 +3,11 @@ set -euo pipefail
 
 assets=${1:?Usage: smoke-handoff-runtime.sh ASSET_DIRECTORY}
 archive=points-handoff-linux-amd64-v1.tar.gz
+if [[ $(uname -s)/$(uname -m) != Linux/x86_64 ]]; then
+    echo 'This smoke test requires Linux amd64; use the Linux runner or a Linux amd64 VM.' >&2
+    exit 2
+fi
+# The Linux runner provides GNU coreutils, including sha256sum.
 (cd "$assets" && sha256sum --check "$archive.sha256")
 
 scratch=$(mktemp -d)
