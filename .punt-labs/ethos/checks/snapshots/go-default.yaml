@@ -17,6 +17,8 @@ checks:
           # A Darwin pin needs a native runtime and separate parity proof.
           bundle: points-handoff-linux-amd64-v1.tar.gz
           sha256: "8d2aa95f04f89407b81f9fff7a64b8f07353af0646e709f73c16d4a54a3debdb"
+          # Node 22 and markdownlint-cli2 come from {runtime}/bin, not system.tools.
+          # make markdownlint finds the bundled CLI before its online npx fallback.
           path: ["{runtime}/go/bin", "{runtime}/bin"]
           env:
             CGO_ENABLED: "1"
